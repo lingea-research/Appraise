@@ -400,6 +400,13 @@ class BasePairwiseAssessmentResult(BaseMetadata):
         verbose_name=_('Errors (2)'),
     )
 
+    metadata = models.TextField(
+        blank=True,
+        help_text=_(f('(JSONL metadata)')),
+        null=True,
+        verbose_name=_('Metadata'),
+    )
+
     class Meta:
         abstract = True
 

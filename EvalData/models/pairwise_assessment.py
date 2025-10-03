@@ -817,6 +817,7 @@ class PairwiseAssessmentResult(BasePairwiseAssessmentResult):
             'errors1',  # Translation errors/annotation comments
             'errors2',  # Translation errors/annotation comments
             'sourceErrors',  # Errors in the source text
+            'metadata', # JSON metadata as text
         )
 
         if extended_csv:

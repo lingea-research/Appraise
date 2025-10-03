@@ -1524,9 +1524,11 @@ def pairwise_assessment(request, code=None, campaign_name=None):
         error1 = request.POST.get('error1', None)
         error2 = request.POST.get('error2', None)
 
+        metadata = request.POST.get('metadata', '{}')
+
         print(
-            'score1={0}, score2={1}, item_id={2}, src_err={3}, error1={4}, error2={5}'.format(
-                score1, score2, item_id, source_error, error1, error2
+            'score1={0}, score2={1}, item_id={2}, src_err={3}, error1={4}, error2={5}, metadata={6}'.format(
+                score1, score2, item_id, source_error, error1, error2, metadata
             )
         )
         LOGGER.info('score1=%s, score2=%s, item_id=%s', score1, score2, item_id)
@@ -1565,6 +1567,7 @@ def pairwise_assessment(request, code=None, campaign_name=None):
                     sourceErrors=source_error,
                     errors1=error1,
                     errors2=error2,
+                    metadata=metadata,
                 )
 
     t3 = datetime.now()
@@ -1626,6 +1629,7 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     doc_guidelines = False
     guidelines_popup = False
     dialect_guidelines = False
+    ui_v2 = False
 
     if 'reportcriticalerror' in campaign_opts:
         critical_error = True
@@ -1636,6 +1640,9 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     if 'sqm' in campaign_opts:
         use_sqm = True
         extra_guidelines = True
+
+    if 'v2' in campaign_opts:
+        ui_v2 = True
 
     if 'gamingdomainnote' in campaign_opts:
         priming_question_text = (
@@ -1748,7 +1755,9 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     }
     context.update(BASE_CONTEXT)
 
-    return render(request, 'EvalView/pairwise-assessment.html', context)
+
+    html_page = 'EvalView/pairwise-assessment-v2.html' if ui_v2 else 'EvalView/pairwise-assessment.html'
+    return render(request, html_page, context)
 
 
 # pylint: disable=C0103,C0330
