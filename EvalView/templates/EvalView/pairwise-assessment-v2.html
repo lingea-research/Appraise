@@ -3,10 +3,6 @@
 
 {% block head %}
 <style>
-.slider .ui-slider-range { background: #729fcf; }
-.slider .ui-slider-handle { border-color: #729fcf; }
-.slider { margin-top: 10px; }
-
 .quotelike {
   border-left: 5px solid #eee;
   font-size: 16px;
@@ -19,9 +15,6 @@
 .priming-question { font-size: 130%; margin-bottom: 20px; }
 .candidate-text.active .diff { background: #ff06; }
 
-small.padleft { padding-left: 20px; }
-small.padright { padding-right: 20px; }
-
 [data-pseudo-content]::before,
 [data-pseudo-content--before]::before,
 [data-pseudo-content--after]::after {
@@ -29,35 +22,160 @@ small.padright { padding-right: 20px; }
   font-weight:bold;
 }
 
-.slider-box { font-size:16px; width:100%; }
-.slider-box .slider-grid { font-size:14px; width:100%; color:#777; }
-
-.button-critical-error { margin-top:10px; }
-
 .question-box { margin-bottom:10px; }
 .question-box p { font-size: 120%; margin: 10px 0 20px; font-style: italic; color: #31708f; }
 .question-box li { font-size: 100%; font-style: italic; color: #31708f; }
+
+.quality-scale {
+  margin-top: 10px;
+  width: 100%;
+}
+.quality-scale .btn-group {
+  float: none;
+}
+.btn-quality {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+  padding: 14px 8px;
+  color: #fff;
+  font-weight: 600;
+  white-space: normal;
+  text-shadow: none;
+  position: relative;
+}
+.btn-quality .quality-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  font-size: 1.2em;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+}
+.btn-quality .quality-label {
+  display: block;
+  text-align: center;
+}
+.btn-quality .quality-grade {
+  display: block;
+  font-size: 1.4em;
+  line-height: 1.2;
+}
+.btn-quality .quality-description {
+  display: block;
+  font-size: 0.85em;
+  font-weight: 400;
+  margin-top: 0.4em;
+}
+.btn-quality input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.btn-quality:focus,
+.btn-quality:focus-within {
+  outline: 2px solid #004085;
+  outline-offset: 2px;
+}
+.btn-quality.active,
+.btn-quality:hover {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+  filter: brightness(1.1);
+}
+.btn-quality.active {
+  transform: scale(1.03);
+  box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.85);
+  filter: brightness(1.1);
+}
+.btn-quality.active .quality-check {
+  display: block;
+}
+.quality-option-1 { background: #d9534f; }
+.quality-option-2 {
+  background: #f0ad4e; 
+  color: #2f3b11;
+}
+.quality-option-3 {
+  background: #d3e762;
+  color: #2f3b11;
+}
+.quality-option-4 {
+  background: #8edc8d;
+  color: #14351a;
+}
+.quality-option-5 { background: #2e7d32; }
+.quality-option-2 .quality-check,
+.quality-option-3 .quality-check,
+.quality-option-4 .quality-check {
+  color: #2f3b11;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+.quality-option-3 .quality-description,
+.quality-option-4 .quality-description {
+  color: inherit;
+}
+.quality-option-3 .quality-grade,
+.quality-option-4 .quality-grade {
+  color: inherit;
+}
+@media (max-width: 480px) {
+  .quality-scale.btn-group-justified {
+    display: block;
+  }
+  .quality-scale.btn-group-justified > .btn-group {
+    display: block;
+    float: none;
+    width: 100%;
+  }
+  .quality-scale.btn-group-justified > .btn-group + .btn-group {
+    margin-top: 10px;
+  }
+}
 </style>
 
-<link rel="stylesheet" href="{% static 'EvalView/css/jquery-ui.css' %}">
-<script src="{% static 'EvalView/js/jquery-ui.min.js' %}"></script>
 <script src="{% static 'EvalView/js/js.cookie-2.2.1.min.js' %}"></script>
 <script>
 <!--
-String.prototype.rot13 = function() {
-  return this.replace(/[a-zA-Z]/g, function(c) {
-    return String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
-  });
-};
-
 $(document).ready(function() {
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
 
-  $('#slider').slider({orientation: "horizontal", range: "min", change: update_score});
-  $('input[name="score"]').val(-1);
+  var hiddenScore = $('input[name="score"]');
+  if (hiddenScore.length) {
+    hiddenScore.val(-1);
+  }
+  var hiddenScore2 = $('input[name="score2"]');
+  if (hiddenScore2.length) {
+    hiddenScore2.val(-1);
+  }
 
-  $('#slider2').slider({orientation: "horizontal", range: "min", change: update_score2});
-  $('input[name="score2"]').val(-1);
+  var qualityRadios = $('.quality-scale input[type="radio"]');
+  qualityRadios.on('change', function() {
+    var selectedScore = Number($(this).data('score'));
+    if (isNaN(selectedScore)) {
+      selectedScore = Number($(this).val());
+    }
+    var container = $(this).closest('.quality-scale');
+    set_hidden_score(container, selectedScore);
+    update_active_state(container, $(this));
+  });
+
+  $('.quality-scale').each(function() {
+    var container = $(this);
+    var hiddenInput = get_hidden_input(container);
+    if (!hiddenInput.length) {
+      return;
+    }
+    var existingScore = Number(hiddenInput.val());
+    if (!isNaN(existingScore) && existingScore >= 0) {
+      set_selected_score(container.attr('id'), existingScore, false);
+    }
+  });
+
+  if (qualityRadios.length) {
+    qualityRadios.first().focus();
+  }
 
   if (Cookies.get('show-context') == 'yes') {
     $('.context-sentences').show();
@@ -68,12 +186,67 @@ $(document).ready(function() {
     $('.candidate-text').addClass('active');
   }
 
-  // make the first slider active, so that the score can be changed using left/right keys
-  $('#slider .ui-slider-handle').focus();
-
   // Show guidelines in a popup box
   $('#guidelines-modal').modal('show');
 });
+
+function get_hidden_input(container) {
+  var targetName = container.data('target-input');
+  if (!targetName) {
+    return $();
+  }
+  return $('input[name="' + targetName + '"]');
+}
+
+function set_hidden_score(container, score) {
+  var hiddenInput = get_hidden_input(container);
+  if (!hiddenInput.length) {
+    return;
+  }
+  hiddenInput.val(score);
+}
+
+function update_active_state(container, radioInput) {
+  var buttons = container.find('.btn-quality');
+  buttons.removeClass('active');
+  if (radioInput && radioInput.length) {
+    radioInput.closest('.btn-quality').addClass('active');
+  }
+}
+
+function set_selected_score(containerId, score, triggerChange) {
+  var container = $('#' + containerId);
+  if (!container.length) {
+    return;
+  }
+  var radios = container.find('input[type="radio"]');
+  var target = radios.filter(function() {
+    return Number($(this).data('score')) === Number(score);
+  }).first();
+  if (!target.length) {
+    return;
+  }
+  radios.prop('checked', false);
+  target.prop('checked', true);
+  update_active_state(container, target);
+  if (triggerChange !== false) {
+    target.trigger('change');
+  } else {
+    set_hidden_score(container, Number(score));
+  }
+}
+
+function get_selected_score(containerId) {
+  var container = $('#' + containerId);
+  if (!container.length) {
+    return null;
+  }
+  var checked = container.find('input[type="radio"]:checked');
+  if (!checked.length) {
+    return null;
+  }
+  return Number(checked.data('score'));
+}
 
 function toggle_context()
 {
@@ -102,8 +275,8 @@ function add_end_timestamp()
 function reset_form()
 {
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
-  $('#slider').slider('option', 'value', 0);
-  $('#slider2').slider('option', 'value', 0);
+  $('.quality-scale input[type="radio"]').prop('checked', false);
+  $('.quality-scale .btn-quality').removeClass('active');
   $('input[name="score"]').val(-1);
   $('input[name="score2"]').val(-1);
   $('input[name="error1"]').prop("checked", false);
@@ -123,22 +296,13 @@ function validate_form()
   return true;
 }
 
-function update_score()
+function match_ratings()
 {
-  var new_score = $('#slider').slider('value');
-  $('input[name="score"]').val(new_score);
-}
-
-function update_score2()
-{
-  var new_score = $('#slider2').slider('value');
-  $('input[name="score2"]').val(new_score);
-}
-
-function match_sliders()
-{
-  var score1 = $('input[name="score"]').val();
-  $('#slider2').slider('option', 'value', score1);
+  var score1 = get_selected_score('rating');
+  if (score1 === null) {
+    return;
+  }
+  set_selected_score('rating2', score1);
 }
 -->
 </script>
@@ -150,7 +314,7 @@ function match_sliders()
 <form action="{{action_url}}" method="post" onsubmit="javascript:add_end_timestamp();">
 {% csrf_token %}
 
-<div class="alert alert-info">
+<div class="alert">
   <table style="width:100%">
   <tr>
     <td style="width:33%;text-align:left;">
@@ -165,10 +329,6 @@ function match_sliders()
   </tr>
   </table>
 </div>
-
-{% if guidelines_popup %}
-    {% include 'EvalView/_guidelines_popup.html' %}
-{% endif %}
 
 <div class="row quotelike">
 <div class="col-sm-12">
@@ -232,7 +392,7 @@ function match_sliders()
   <tr>
     <td style="width:50%;text-align:left;">
       <button onclick="javascript:reset_form();" accesskey="2" type="reset" class="btn"
-              title="Reset the slider(s). Access key: '2'"><i class="icon-repeat"></i> Reset</button>
+        title="Reset the rating buttons. Access key: '2'"><i class="icon-repeat"></i> Reset</button>
 
       {% if candidate2_text %}
       <button onclick="javascript:toggle_diff();" accesskey="4" type="button" class="btn"
@@ -245,8 +405,8 @@ function match_sliders()
     </td>
     <td style="width:50%;text-align:right;">
       {% if candidate2_text %}
-      <button onclick="javascript:match_sliders();" accesskey="3" type="button" class="btn"
-              title="Match the second slider with the first one. Access key: '3'">Match sliders</button>
+      <button onclick="javascript:match_ratings();" accesskey="3" type="button" class="btn"
+        title="Match the second rating with the first one. Access key: '3'">Match ratings</button>
       {% endif %}
       <button class="btn btn-primary" name="submit_button" accesskey="1" type="submit" value="SUBMIT" onclick="javascript:return validate_form();"
               title="Submit score(s). Access key: '1'"><i class="icon-ok-sign icon-white"></i> Submit</button>
