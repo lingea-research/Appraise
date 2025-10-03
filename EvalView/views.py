@@ -1579,8 +1579,6 @@ def pairwise_assessment(request, code=None, campaign_name=None):
         LOGGER.info('No current item detected, redirecting to dashboard')
         return redirect('dashboard')
 
-    # completed_items_check = current_task.completed_items_for_user(
-    #     request.user)
     completed_blocks = int(completed_items / 10)
     _msg = 'completed_items=%s, completed_blocks=%s'
     LOGGER.info(_msg, completed_items, completed_blocks)
@@ -1725,7 +1723,13 @@ def pairwise_assessment(request, code=None, campaign_name=None):
             )
         )
 
+    num_items_total = current_task.items.count()
+    num_items_done = completed_items
+
     context = {
+        'num_items_total': num_items_total,
+        'num_items_done': num_items_done,
+
         'active_page': 'pairwise-assessment',
         'reference_label': reference_label,
         'reference_text': segment_text,
@@ -1754,7 +1758,6 @@ def pairwise_assessment(request, code=None, campaign_name=None):
         'doc_guidelines': doc_guidelines,
     }
     context.update(BASE_CONTEXT)
-
 
     html_page = 'EvalView/pairwise-assessment-v2.html' if ui_v2 else 'EvalView/pairwise-assessment.html'
     return render(request, html_page, context)
