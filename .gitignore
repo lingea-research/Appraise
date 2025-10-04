@@ -5,11 +5,15 @@ Examples/**/*.csv
 Examples/**/*.log
 Packages
 regressiontests.db
-./static
+db.sqlite3*
+/static
+!/static/**/
 
 # Python
 *.py[cod]
 __pycache__
+.venv
+venv
 
 # Temporary files
 *~
@@ -19,9 +23,5 @@ appraise.log
 .vscode
 *.sw[po]
 
-.venv
-venv
-db.sqlite3*
-
+# Custom
 Scripts/restart_all.sh
-static
