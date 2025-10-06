@@ -1628,6 +1628,7 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     guidelines_popup = False
     dialect_guidelines = False
     ui_v2 = False
+    comments_required = False
 
     if 'reportcriticalerror' in campaign_opts:
         critical_error = True
@@ -1641,6 +1642,8 @@ def pairwise_assessment(request, code=None, campaign_name=None):
 
     if 'v2' in campaign_opts:
         ui_v2 = True
+    if 'requirecomment' in campaign_opts:
+        comments_required = True
 
     if 'gamingdomainnote' in campaign_opts:
         priming_question_text = (
@@ -1729,6 +1732,7 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     context = {
         'num_items_total': num_items_total,
         'num_items_done': num_items_done,
+        'comments_required': comments_required,
 
         'active_page': 'pairwise-assessment',
         'reference_label': reference_label,

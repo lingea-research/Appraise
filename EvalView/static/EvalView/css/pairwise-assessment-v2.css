@@ -237,6 +237,90 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+.comment-section {
+  border: 1px solid #e3e6eb;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-top: 28px;
+  background: #ffffff;
+}
+.comment-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #1f2937;
+}
+.comment-required-indicator {
+  color: #d9534f;
+  font-size: 1rem;
+}
+.comment-help {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: #6c757d;
+}
+.comment-field {
+  resize: vertical;
+  min-height: 120px;
+  border-radius: 8px;
+  border: 1px solid #d0d7de;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+  font-size: 0.95rem;
+  padding: 12px 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.comment-field:focus {
+  border-color: #337ab7;
+  box-shadow: 0 0 0 3px rgba(51, 122, 183, 0.15);
+  outline: none;
+}
+.quick-comment-section {
+  margin-top: 16px;
+}
+.quick-comment-title {
+  display: block;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6c757d;
+  margin-bottom: 10px;
+}
+.quick-comment-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quick-comment-button {
+  border: 1px solid #d0d7de;
+  border-radius: 999px;
+  background: #f5f7fa;
+  color: #1d2736;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.quick-comment-button:hover,
+.quick-comment-button:focus {
+  background: #e8efff;
+  color: #0c2d6b;
+  text-decoration: none;
+  outline: none;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+.quick-comment-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(51, 122, 183, 0.35);
+}
+.quick-comment-button.active {
+  background: #337ab7;
+  color: #ffffff;
+  border-color: #337ab7;
+  box-shadow: 0 10px 24px rgba(51, 122, 183, 0.25);
+}
 .candidate-card {
   position: relative;
   border: 1px solid #e3e6eb;
@@ -255,10 +339,7 @@
   text-transform: uppercase;
   color: #6c757d;
 }
-.candidate-card:hover {
-  border-color: #d0d7de;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-}
+.candidate-card:hover { }
 .candidate-card .candidate-text {
   padding-left: 0;
 }
@@ -396,6 +477,9 @@
   .reference-panel::before,
   .candidate-card::before {
     left: 24px;
+  }
+  .comment-section {
+    padding: 20px 18px;
   }
 }
 @media (max-width: 768px) {

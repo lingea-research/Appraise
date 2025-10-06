@@ -1,3 +1,28 @@
+var COMMENT_CONFIG = {
+  field: null,
+  section: null,
+  buttonsContainer: null,
+  required: false,
+};
+
+var QUICK_COMMENT_PRESETS = window.PAIRWISE_QUICK_COMMENTS;
+if (!Array.isArray(QUICK_COMMENT_PRESETS) || !QUICK_COMMENT_PRESETS.length) {
+  QUICK_COMMENT_PRESETS = [
+    { name: 'sensitive content', text: 'the text is politically, ethically, or socially sensitive' },
+    { name: 'missing context', text: 'the example is missing context to properly evaluate' },
+    { name: 'challenging translation', text: 'this example represents a particularly challenging translation' },
+    { name: 'issues in source', text: 'there are issues in the source text' },
+    { name: 'critical error', text: 'the candidate contains a critical error' },
+    { name: 'incorrect gender', text: 'the translation uses incorrect gender' },
+    { name: 'undertranslated', text: 'the translation is undertranslated' },
+    { name: 'overtranslated', text: 'the translation is overtranslated' },
+    { name: 'locale conventions', text: 'locale-specific conventions are not respected' },
+    { name: 'style issues', text: 'the translation has style issues' },
+    { name: 'terminology errors', text: 'there are terminology errors in the translation' },
+    { name: 'not fluent', text: 'the translation is not fluent' },
+  ];
+}
+
 function get_hidden_input(container) {
   var targetName = container.data('target-input');
   if (!targetName) {
@@ -56,16 +81,192 @@ function get_selected_score(containerId) {
   return Number(checked.data('score'));
 }
 
-function set_metadata_preference(preferenceLabel) {
-  var metadataField = $('input[name="metadata"]');
+function get_metadata_field() {
+  return $('input[name="metadata"]');
+}
+
+function read_metadata() {
+  var metadataField = get_metadata_field();
+  if (!metadataField.length) {
+    return {};
+  }
+  var raw = metadataField.val();
+  if (!raw) {
+    return {};
+  }
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed;
+  } catch (error) {
+    return {};
+  }
+}
+
+function write_metadata(metadata) {
+  var metadataField = get_metadata_field();
   if (!metadataField.length) {
     return;
   }
-  if (!preferenceLabel) {
+
+  var cleaned = {};
+  $.each(metadata || {}, function(key, value) {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value === 'string') {
+      var trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+      cleaned[key] = trimmed;
+      return;
+    }
+    cleaned[key] = value;
+  });
+
+  if (Object.keys(cleaned).length === 0) {
     metadataField.val('{}');
+  } else {
+    metadataField.val(JSON.stringify(cleaned));
+  }
+}
+
+function set_metadata_preference(preferenceLabel) {
+  var metadata = read_metadata();
+  if (preferenceLabel) {
+    metadata.preference = preferenceLabel;
+  } else {
+    delete metadata.preference;
+  }
+  write_metadata(metadata);
+}
+
+function set_metadata_comment(commentText) {
+  var metadata = read_metadata();
+  if (commentText && commentText.trim()) {
+    metadata.comment = commentText.trim();
+  } else {
+    delete metadata.comment;
+  }
+  write_metadata(metadata);
+}
+
+function comment_contains_phrase(field, phrase) {
+  if (!field || !field.length) {
+    return false;
+  }
+  var currentValue = field.val() || '';
+  return currentValue.toLowerCase().indexOf((phrase || '').toLowerCase()) !== -1;
+}
+
+function append_quick_comment(field, phrase) {
+  if (!field || !field.length || !phrase) {
     return;
   }
-  metadataField.val(JSON.stringify({ preference: preferenceLabel }));
+
+  if (comment_contains_phrase(field, phrase)) {
+    return;
+  }
+
+  var existing = field.val() || '';
+  var updated = existing;
+  if (existing.trim().length === 0) {
+    updated = phrase;
+  } else {
+    if (!/\n\s*$/.test(existing)) {
+      updated = existing.replace(/\s+$/, '') + '\n' + phrase;
+    } else {
+      updated = existing + phrase;
+    }
+  }
+  field.val(updated);
+  field.trigger('input');
+}
+
+function update_quick_comment_states(container, field) {
+  if (!container || !container.length || !field || !field.length) {
+    return;
+  }
+  var currentValue = (field.val() || '').toLowerCase();
+  container.find('[data-quick-comment-button]').each(function() {
+    var button = $(this);
+    var phrase = (button.data('quick-comment-text') || '').toString().toLowerCase();
+    var isPresent = phrase && currentValue.indexOf(phrase) !== -1;
+    button.toggleClass('active', isPresent);
+    button.attr('aria-pressed', isPresent ? 'true' : 'false');
+  });
+}
+
+function sync_comment_metadata() {
+  if (!COMMENT_CONFIG.field || !COMMENT_CONFIG.field.length) {
+    return;
+  }
+  set_metadata_comment(COMMENT_CONFIG.field.val());
+  if (COMMENT_CONFIG.buttonsContainer && COMMENT_CONFIG.buttonsContainer.length) {
+    update_quick_comment_states(COMMENT_CONFIG.buttonsContainer, COMMENT_CONFIG.field);
+  }
+}
+
+function initialize_comment_field() {
+  var section = $('[data-comment-section]');
+  var field = $('#comment-field');
+  var buttonsContainer = $('[data-quick-comments]');
+
+  COMMENT_CONFIG.section = section;
+  COMMENT_CONFIG.field = field.length ? field : null;
+  COMMENT_CONFIG.buttonsContainer = buttonsContainer;
+  COMMENT_CONFIG.required = false;
+
+  if (!section.length || !field.length) {
+    return COMMENT_CONFIG;
+  }
+
+  var requiredAttr = section.data('comments-required');
+  COMMENT_CONFIG.required = requiredAttr === true || requiredAttr === 'true';
+
+  var existingMetadata = read_metadata();
+  if (existingMetadata.comment && !field.val()) {
+    field.val(existingMetadata.comment);
+  }
+
+  field.on('input change blur', function() {
+    sync_comment_metadata();
+  });
+
+  sync_comment_metadata();
+  return COMMENT_CONFIG;
+}
+
+function initialize_quick_comments() {
+  if (!COMMENT_CONFIG.buttonsContainer || !COMMENT_CONFIG.buttonsContainer.length || !COMMENT_CONFIG.field) {
+    return;
+  }
+
+  var container = COMMENT_CONFIG.buttonsContainer;
+  var field = COMMENT_CONFIG.field;
+  container.empty();
+
+  QUICK_COMMENT_PRESETS.forEach(function(preset) {
+    if (!preset || !preset.name || !preset.text) {
+      return;
+    }
+    var button = $('<button type="button" class="quick-comment-button"></button>');
+    button.text(preset.name);
+    button.attr('data-quick-comment-button', 'true');
+    button.attr('data-quick-comment-text', preset.text);
+    button.attr('aria-pressed', 'false');
+    button.on('click', function(event) {
+      event.preventDefault();
+      append_quick_comment(field, preset.text);
+      sync_comment_metadata();
+    });
+    container.append(button);
+  });
+
+  update_quick_comment_states(container, field);
 }
 
 function set_preference_radio(preferenceLabel) {
@@ -214,19 +415,21 @@ function reset_form()
   $('input[name="score2"]').val(-1);
   $('input[name="error1"]').prop("checked", false);
   $('input[name="error2"]').prop("checked", false);
-  var metadataField = $('input[name="metadata"]');
-  if (metadataField.length) {
-    metadataField.val('{}');
-  }
+  write_metadata({});
   var preferenceFieldset = $('#preference-fieldset');
   if (preferenceFieldset.length) {
     preferenceFieldset.find('input[type="radio"]').prop('checked', false);
   }
+  if (COMMENT_CONFIG.field && COMMENT_CONFIG.field.length) {
+    COMMENT_CONFIG.field.val('');
+  }
+  sync_comment_metadata();
   update_preference_ui();
 }
 
 function validate_form()
 {
+  sync_comment_metadata();
   var score1 = $('input[name="score"]');
   var score2 = $('input[name="score2"]');
   if (score1.val() == -1 || (score2.length && score2.val() == -1))
@@ -235,11 +438,21 @@ function validate_form()
     return false;
   }
 
+  if (COMMENT_CONFIG.required) {
+    var commentField = COMMENT_CONFIG.field;
+    if (!commentField || !commentField.val() || !commentField.val().trim()) {
+      alert('Please provide a comment before submitting. Thanks!');
+      return false;
+    }
+  }
+
   var hasPreference = $('#preference-fieldset').length > 0;
-  var metadataField = $('input[name="metadata"]');
-  if (hasPreference && metadataField.length && metadataField.val() === '{}') {
-    alert('Please record your preference before submitting. Thanks!');
-    return false;
+  if (hasPreference) {
+    var metadata = read_metadata();
+    if (!metadata.preference) {
+      alert('Please record your preference before submitting. Thanks!');
+      return false;
+    }
   }
 
   return true;
@@ -339,6 +552,8 @@ function initialize_layout_controls()
 
 $(document).ready(function() {
   initialize_layout_controls();
+  initialize_comment_field();
+  initialize_quick_comments();
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
 
   var hiddenScore = $('input[name="score"]');
@@ -410,5 +625,6 @@ $(document).ready(function() {
 
   $('#guidelines-modal').modal('show');
 
+  sync_comment_metadata();
   update_preference_ui();
 });

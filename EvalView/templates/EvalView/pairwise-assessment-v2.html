@@ -108,6 +108,7 @@
 {% if candidate2_text %}
 <div class="preference-section preference-inactive" id="preference-section">
   <h3 class="preference-title" id="preference-title">Preference</h3>
+  <p class="preference-description">Rate both candidates to unlock preference selection.</p>
   <p class="preference-status" id="preference-status"></p>
   <fieldset id="preference-fieldset" class="preference-fieldset" aria-labelledby="preference-title" aria-describedby="preference-status" disabled>
     <legend class="sr-only">Preference between the two candidates</legend>
@@ -136,6 +137,26 @@
   </fieldset>
 </div>
 {% endif %}
+
+<div class="comment-section" data-comment-section data-comments-required="{% if comments_required %}true{% else %}false{% endif %}">
+  <label for="comment-field" class="comment-label">
+    Comment
+    {% if comments_required %}<span class="comment-required-indicator" aria-hidden="true">*</span>{% endif %}
+  </label>
+  <p id="comment-help" class="comment-help">
+    {% if comments_required %}
+    A comment is required for this task. Share any details that justify your decision.
+    {% else %}
+    Optional but helpful—use this space to capture anything noteworthy about the item.
+    {% endif %}
+  </p>
+  <textarea id="comment-field" name="comment" class="form-control comment-field" rows="4" aria-describedby="comment-help" {% if comments_required %}required aria-required="true"{% else %}aria-required="false"{% endif %} placeholder="Add any notes for this assessment..."></textarea>
+
+  <div class="quick-comment-section">
+    <span class="quick-comment-title">Quick comments</span>
+    <div class="quick-comment-buttons" data-quick-comments aria-live="polite"></div>
+  </div>
+</div>
 
 <div class="actions">
   <table style="width:100%">
