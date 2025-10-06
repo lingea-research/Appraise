@@ -269,6 +269,48 @@ function initialize_quick_comments() {
   update_quick_comment_states(container, field);
 }
 
+function set_diff_mode(mode)
+{
+  var showDiff = mode === 'show';
+  var candidateTexts = $('.candidate-text');
+  if (candidateTexts.length) {
+    if (showDiff) {
+      candidateTexts.addClass('active');
+    } else {
+      candidateTexts.removeClass('active');
+    }
+  }
+
+  var diffButtons = $('[data-diff-choice]');
+  diffButtons.each(function() {
+    var button = $(this);
+    var isActive = button.data('diff-choice') === (showDiff ? 'show' : 'hide');
+    button.toggleClass('active', isActive);
+    button.attr('aria-pressed', isActive ? 'true' : 'false');
+  });
+
+  if (typeof Cookies !== 'undefined') {
+    Cookies.set('show-diff', showDiff ? 'yes' : 'no', { sameSite: 'strict' });
+  }
+}
+
+function initialize_diff_controls()
+{
+  var diffButtons = $('[data-diff-choice]');
+  var storedPreference = typeof Cookies !== 'undefined' ? Cookies.get('show-diff') : null;
+  var initialMode = storedPreference === 'no' ? 'hide' : 'show';
+
+  if (diffButtons.length) {
+    diffButtons.on('click', function(event) {
+      event.preventDefault();
+      var choice = $(this).data('diff-choice');
+      set_diff_mode(choice === 'hide' ? 'hide' : 'show');
+    });
+  }
+
+  set_diff_mode(initialMode);
+}
+
 function set_preference_radio(preferenceLabel) {
   var fieldset = $('#preference-fieldset');
   if (!fieldset.length) {
@@ -392,13 +434,8 @@ function toggle_context()
 
 function toggle_diff()
 {
-    var isActive = $('.candidate-text').first().hasClass('active');
-    if (isActive) {
-        $('.candidate-text').removeClass('active');
-    } else {
-        $('.candidate-text').addClass('active');
-    }
-    Cookies.set('show-diff', isActive ? 'no' : 'yes', { sameSite: 'strict' });
+  var isActive = $('.candidate-text').first().hasClass('active');
+  set_diff_mode(isActive ? 'hide' : 'show');
 }
 
 function add_end_timestamp()
@@ -552,6 +589,7 @@ function initialize_layout_controls()
 
 $(document).ready(function() {
   initialize_layout_controls();
+  initialize_diff_controls();
   initialize_comment_field();
   initialize_quick_comments();
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
@@ -617,10 +655,6 @@ $(document).ready(function() {
     }
   } else if (referencePanel.length) {
     referencePanel.attr('data-reference-label', referenceLabel);
-  }
-
-  if (Cookies.get('show-diff') != 'no') {
-    $('.candidate-text').addClass('active');
   }
 
   $('#guidelines-modal').modal('show');

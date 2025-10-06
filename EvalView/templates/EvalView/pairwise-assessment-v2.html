@@ -30,6 +30,19 @@
   </button>
 </div>
 
+{% if candidate2_text %}
+<div class="layout-controls" data-layout-group="diff" role="group" aria-label="Diff highlight options">
+  <button type="button" class="layout-button" data-diff-choice="show" aria-pressed="false" accesskey="4">
+    <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>
+    <span class="layout-label">Show diff</span>
+  </button>
+  <button type="button" class="layout-button" data-diff-choice="hide" aria-pressed="false" accesskey="6">
+    <span class="glyphicon glyphicon-eye-close" aria-hidden="true"></span>
+    <span class="layout-label">Hide diff</span>
+  </button>
+</div>
+{% endif %}
+
 <div class="assessment-shell" data-layout-container data-orientation="vertical">
 
 <form action="{{action_url}}" method="post" onsubmit="javascript:add_end_timestamp();" data-assessment-form data-orientation="vertical">
@@ -165,10 +178,6 @@
       <button onclick="javascript:reset_form();" accesskey="2" type="reset" class="btn btn-default"
         title="Reset the rating buttons. Access key: '2'"><i class="icon-repeat"></i> Reset</button>
 
-      {% if candidate2_text %}
-      <button onclick="javascript:toggle_diff();" accesskey="4" type="button" class="btn btn-default"
-              title="Show or hide highlighted differences between segments. Access key: '4'">Show/Hide diff.</button>
-      {% endif %}
       {% if context_left or context_right %}
       <button onclick="javascript:toggle_context();" accesskey="5" type="button" class="btn btn-default"
               title="Show or hide the context. Access key: '5'">Show/Hide context</button>
