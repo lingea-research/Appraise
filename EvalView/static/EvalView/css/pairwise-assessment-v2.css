@@ -99,7 +99,6 @@
   border: 1px solid #e3e6eb;
   border-radius: 12px;
   padding: 52px 28px 28px;
-  margin: 20px 0 24px;
 }
 .reference-panel::before {
   content: attr(data-reference-label);
@@ -134,18 +133,32 @@
 .reference-panel[data-reference-label=""]::before {
   display: none;
 }
-[data-orientation="vertical"] .candidate-wrapper {
+.comparison-deck {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
 }
-[data-orientation="stacked"] .candidate-wrapper {
-  display: grid;
+[data-orientation="vertical"] .comparison-deck {
   grid-template-columns: 1fr;
-  gap: 20px;
 }
-[data-orientation="stacked"] .candidate-wrapper {
-  margin-top: 12px;
+[data-orientation="vertical"] .comparison-deck > .reference-panel {
+  grid-column: 1;
+}
+[data-orientation="stacked"] .comparison-deck {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+[data-orientation="stacked"] .comparison-deck > .reference-panel {
+  grid-column: 1 / -1;
+}
+[data-orientation="horizontal"] .comparison-deck {
+  grid-template-columns: minmax(220px, 0.8fr) repeat(auto-fit, minmax(260px, 1fr));
+  align-items: stretch;
+}
+[data-orientation="horizontal"] .comparison-deck > .reference-panel,
+[data-orientation="horizontal"] .comparison-deck > .candidate-card {
+  height: 100%;
+}
+[data-orientation="horizontal"][data-width="narrow"] .comparison-deck {
+  grid-template-columns: minmax(180px, 0.6fr) repeat(auto-fit, minmax(240px, 1fr));
 }
 .preference-section {
   border: 1px solid #e3e6eb;
@@ -401,7 +414,7 @@
 }
 .btn-quality .quality-description {
   display: block;
-  font-size: 0.85em;
+  font-size: 0.6em;
   font-weight: 400;
   margin-top: 0.4em;
 }
@@ -476,7 +489,8 @@
   }
   .reference-panel::before,
   .candidate-card::before {
-    left: 24px;
+    left: 10px;
+    top: 10px;
   }
   .comment-section {
     padding: 20px 18px;
@@ -503,7 +517,8 @@
   }
   .reference-panel::before,
   .candidate-card::before {
-    left: 20px;
+    left: 10px;
+    top: 10px;
   }
   .assessment-header .text-right,
   .assessment-header .text-center {

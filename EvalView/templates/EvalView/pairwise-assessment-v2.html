@@ -9,13 +9,17 @@
 
 {% block content %}
 <div class="layout-controls" role="group" aria-label="Assessment layout options">
+  <button type="button" class="layout-button" data-orientation-choice="stacked" aria-pressed="false">
+    <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
+    <span class="layout-label">Stacked</span>
+  </button>
   <button type="button" class="layout-button" data-orientation-choice="vertical" aria-pressed="false">
     <span class="glyphicon glyphicon-option-vertical" aria-hidden="true"></span>
     <span class="layout-label">Vertical</span>
   </button>
-  <button type="button" class="layout-button" data-orientation-choice="stacked" aria-pressed="false">
-    <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
-    <span class="layout-label">Stacked</span>
+  <button type="button" class="layout-button" data-orientation-choice="horizontal" aria-pressed="false">
+    <span class="glyphicon glyphicon-option-horizontal" aria-hidden="true"></span>
+    <span class="layout-label">Horizontal</span>
   </button>
 </div>
 
@@ -69,23 +73,6 @@
   </p>
 </div>
 
-<div class="reference-panel" data-reference-label="{{reference_label}}">
-  <div class="context-sentences" style="display: none">
-    {% if context_left %}
-      <p><small>{{context_left|safe}}</small></p>
-    {% endif %}
-  </div>
-
-  <p><strong>{{reference_text|safe}}</strong></p>
-  <p class="quotelike-author" id="reference-label">{{reference_label}}</p>
-
-  <div class="context-sentences" style="display: none">
-    {% if context_right %}
-      <p><small>{{context_right|safe}}</small></p>
-    {% endif %}
-  </div>
-</div>
-
 <input name="end_timestamp" type="hidden" value="" />
 <input name="item_id" type="hidden" value="{{item_id}}" />
 <input name="task_id" type="hidden" value="{{task_id}}" />
@@ -96,8 +83,25 @@
 {% endif %}
 <input name="metadata" type="hidden" value="{}" />
 
-<div class="candidate-wrapper">
-  <div class="candidate-card" data-pseudo-content="Candidate A">
+<div class="comparison-deck" data-comparison-deck>
+  <div class="reference-panel" data-reference-label="{{reference_label}}">
+    <div class="context-sentences" style="display: none">
+      {% if context_left %}
+        <p><small>{{context_left|safe}}</small></p>
+      {% endif %}
+    </div>
+
+    <p><strong>{{reference_text|safe}}</strong></p>
+    <p class="quotelike-author" id="reference-label">{{reference_label}}</p>
+
+    <div class="context-sentences" style="display: none">
+      {% if context_right %}
+        <p><small>{{context_right|safe}}</small></p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="candidate-card" data-pseudo-content="Candidate A" data-candidate-index="1">
     <p class="candidate-text"><strong>{{candidate_text|safe}}</strong></p>
     <div class="rating-row">
       {% with sliderid='' %}
@@ -107,7 +111,7 @@
   </div>
 
   {% if candidate2_text %}
-  <div class="candidate-card" data-pseudo-content="Candidate B">
+  <div class="candidate-card" data-pseudo-content="Candidate B" data-candidate-index="2">
     <p class="candidate-text"><strong>{{candidate2_text|safe}}</strong></p>
     <div class="rating-row">
       {% with sliderid='2' %}
@@ -116,12 +120,12 @@
     </div>
   </div>
   {% endif %}
+
 </div>
 
 {% if candidate2_text %}
 <div class="preference-section preference-inactive" id="preference-section">
   <h3 class="preference-title" id="preference-title">Preference</h3>
-  <p class="preference-description">Rate both candidates to unlock preference selection.</p>
   <p class="preference-status" id="preference-status"></p>
   <fieldset id="preference-fieldset" class="preference-fieldset" aria-labelledby="preference-title" aria-describedby="preference-status" disabled>
     <legend class="sr-only">Preference between the two candidates</legend>

@@ -361,7 +361,7 @@ function update_preference_ui() {
     }
   } else if (score1 > score2) {
     fieldset.prop('disabled', true);
-    section.addClass('preference-locked preference-extreme-a');
+    section.addClass('preference-locked');
     set_preference_radio('A>>B');
     set_metadata_preference('A>>B');
     if (status.length) {
@@ -369,7 +369,7 @@ function update_preference_ui() {
     }
   } else if (score2 > score1) {
     fieldset.prop('disabled', true);
-    section.addClass('preference-locked preference-extreme-b');
+    section.addClass('preference-locked');
     set_preference_radio('A<<B');
     set_metadata_preference('A<<B');
     if (status.length) {
@@ -517,7 +517,7 @@ function initialize_layout_controls()
     return;
   }
 
-  var availableOrientations = ['vertical', 'stacked'];
+  var availableOrientations = ['vertical', 'stacked', 'horizontal'];
   var availableWidths = ['narrow', 'wide'];
   var orientationKey = 'pairwise_v2_orientation';
   var widthKey = 'pairwise_v2_width';
@@ -540,11 +540,9 @@ function initialize_layout_controls()
   }
 
   function setWidth(mode) {
-    if (!widthButtons.length) {
-      return;
-    }
-
     var width = availableWidths.indexOf(mode) >= 0 ? mode : availableWidths[0];
+    layoutContainer.attr('data-width', width);
+    assessmentForm.attr('data-width', width);
 
     if (mainContainer.length) {
       if (width === 'wide') {
@@ -554,12 +552,14 @@ function initialize_layout_controls()
       }
     }
 
-    widthButtons.each(function() {
-      var button = $(this);
-      var isActive = button.data('width-choice') === width;
-      button.toggleClass('active', isActive);
-      button.attr('aria-pressed', isActive ? 'true' : 'false');
-    });
+    if (widthButtons.length) {
+      widthButtons.each(function() {
+        var button = $(this);
+        var isActive = button.data('width-choice') === width;
+        button.toggleClass('active', isActive);
+        button.attr('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
 
     if (typeof Cookies !== 'undefined') {
       Cookies.set(widthKey, width, { sameSite: 'strict' });
@@ -581,10 +581,8 @@ function initialize_layout_controls()
   var storedOrientation = typeof Cookies !== 'undefined' ? Cookies.get(orientationKey) : null;
   setOrientation(storedOrientation);
 
-  if (widthButtons.length) {
-    var storedWidth = typeof Cookies !== 'undefined' ? Cookies.get(widthKey) : null;
-    setWidth(storedWidth);
-  }
+  var storedWidth = typeof Cookies !== 'undefined' ? Cookies.get(widthKey) : null;
+  setWidth(storedWidth);
 }
 
 $(document).ready(function() {
