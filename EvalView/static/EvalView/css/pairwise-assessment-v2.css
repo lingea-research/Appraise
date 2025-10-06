@@ -1,16 +1,6 @@
 .assessment-shell {
-  border: 1px solid #e3e6eb;
-  border-radius: 16px;
-  padding: 32px;
-  background: #ffffff;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
-  transition: box-shadow 0.2s ease;
   margin: 0 auto;
-  max-width: 1100px;
   width: 100%;
-}
-.assessment-shell:hover {
-  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.12);
 }
 .container.container-wide {
   width: 100% !important;
@@ -84,6 +74,20 @@
   text-decoration: none;
   transform: translateY(-1px);
 }
+.layout-button.disabled,
+.layout-button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.layout-button.disabled:hover,
+.layout-button.disabled:focus,
+.layout-button[disabled]:hover,
+.layout-button[disabled]:focus {
+  color: #495057;
+  transform: none;
+}
 .layout-button.active {
   background: #337ab7;
   color: #ffffff;
@@ -109,7 +113,7 @@
   font-size: 0.85rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5c6ac4;
+  color: #6c757d;
 }
 .reference-panel p {
   margin-top: 0;
@@ -144,9 +148,12 @@
   grid-column: 1;
 }
 [data-orientation="stacked"] .comparison-deck {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 [data-orientation="stacked"] .comparison-deck > .reference-panel {
+  grid-column: 1 / -1;
+}
+[data-orientation="stacked"] .comparison-deck > .candidate-card:only-of-type {
   grid-column: 1 / -1;
 }
 [data-orientation="horizontal"] .comparison-deck {
@@ -352,7 +359,6 @@
   text-transform: uppercase;
   color: #6c757d;
 }
-.candidate-card:hover { }
 .candidate-card .candidate-text {
   padding-left: 0;
 }
@@ -480,8 +486,12 @@
   width: 100%;
 }
 @media (max-width: 992px) {
-  .assessment-shell {
-    padding: 24px;
+  .assessment-shell { }
+  [data-orientation="stacked"] .comparison-deck {
+    grid-template-columns: 1fr;
+  }
+  [data-orientation="stacked"] .comparison-deck > .candidate-card {
+    grid-column: 1 / -1;
   }
   .reference-panel,
   .candidate-card {
@@ -497,9 +507,7 @@
   }
 }
 @media (max-width: 768px) {
-  .assessment-shell {
-    padding: 20px;
-  }
+  .assessment-shell { }
   .layout-controls {
     justify-content: center;
   }

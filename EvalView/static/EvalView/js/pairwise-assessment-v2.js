@@ -8,18 +8,21 @@ var COMMENT_CONFIG = {
 var QUICK_COMMENT_PRESETS = window.PAIRWISE_QUICK_COMMENTS;
 if (!Array.isArray(QUICK_COMMENT_PRESETS) || !QUICK_COMMENT_PRESETS.length) {
   QUICK_COMMENT_PRESETS = [
-    { name: 'sensitive content', text: 'the text is politically, ethically, or socially sensitive' },
+    { name: 'sensitive', text: 'the text is politically, ethically, or socially sensitive' },
     { name: 'missing context', text: 'the example is missing context to properly evaluate' },
-    { name: 'challenging translation', text: 'this example represents a particularly challenging translation' },
-    { name: 'issues in source', text: 'there are issues in the source text' },
+    { name: 'challenging', text: 'this source text is particularly challenging to translate' },
+    { name: 'issues with source', text: 'there are issues with the source text' },
+    { name: 'partially translated', text: 'the translation does not include all information from the source text' },
+    { name: 'overtranslated', text: 'the translation includes excessive or unnecessary text' },
+    { name: 'hallucinations', text: 'the translation includes hallucinated, repeated or non-sense text' },
     { name: 'critical error', text: 'the candidate contains a critical error' },
-    { name: 'incorrect gender', text: 'the translation uses incorrect gender' },
-    { name: 'undertranslated', text: 'the translation is undertranslated' },
-    { name: 'overtranslated', text: 'the translation is overtranslated' },
-    { name: 'locale conventions', text: 'locale-specific conventions are not respected' },
-    { name: 'style issues', text: 'the translation has style issues' },
-    { name: 'terminology errors', text: 'there are terminology errors in the translation' },
+    { name: 'terminology', text: 'terminology was not properly translated' },
     { name: 'not fluent', text: 'the translation is not fluent' },
+    { name: 'locale conventions', text: 'locale-specific conventions are not respected' },
+    { name: 'units', text: 'incorrectly localized or converted units/measurements' },
+    { name: 'style', text: 'the translation has style issues' },
+    { name: 'gender', text: 'the translation uses incorrect gender' },
+    { name: 'bad idioms', text: 'idioms were incorrectly or too literally translated' },
   ];
 }
 
@@ -521,22 +524,54 @@ function initialize_layout_controls()
   var availableWidths = ['narrow', 'wide'];
   var orientationKey = 'pairwise_v2_orientation';
   var widthKey = 'pairwise_v2_width';
+  var HORIZONTAL_MIN_WIDTH = 1000;
+  var preferredOrientation = availableOrientations[0];
 
-  function setOrientation(mode) {
-    var orientation = availableOrientations.indexOf(mode) >= 0 ? mode : availableOrientations[0];
-    layoutContainer.attr('data-orientation', orientation);
-    assessmentForm.attr('data-orientation', orientation);
+  function getViewportWidth() {
+    return window.innerWidth || document.documentElement.clientWidth || $(window).width() || 0;
+  }
+
+  function applyOrientation(preferred) {
+    var requested = availableOrientations.indexOf(preferred) >= 0 ? preferred : availableOrientations[0];
+    var viewportWidth = getViewportWidth();
+    var effective = requested;
+
+    if (requested === 'horizontal' && viewportWidth < HORIZONTAL_MIN_WIDTH) {
+      effective = 'stacked';
+    }
+
+    layoutContainer.attr('data-orientation', effective);
+    assessmentForm.attr('data-orientation', effective);
 
     layoutButtons.each(function() {
       var button = $(this);
-      var isActive = button.data('orientation-choice') === orientation;
+      var choice = button.data('orientation-choice');
+      var isActive = choice === effective;
+      var shouldDisable = choice === 'horizontal' && viewportWidth < HORIZONTAL_MIN_WIDTH;
+
       button.toggleClass('active', isActive);
       button.attr('aria-pressed', isActive ? 'true' : 'false');
+      button.prop('disabled', shouldDisable);
+      button.toggleClass('disabled', shouldDisable);
+
+      if (shouldDisable) {
+        button.attr('aria-disabled', 'true');
+      } else {
+        button.removeAttr('aria-disabled');
+      }
     });
 
+    return effective;
+  }
+
+  function setOrientation(mode) {
+    preferredOrientation = availableOrientations.indexOf(mode) >= 0 ? mode : availableOrientations[0];
+
     if (typeof Cookies !== 'undefined') {
-      Cookies.set(orientationKey, orientation, { sameSite: 'strict' });
+      Cookies.set(orientationKey, preferredOrientation, { sameSite: 'strict' });
     }
+
+    applyOrientation(preferredOrientation);
   }
 
   function setWidth(mode) {
@@ -568,6 +603,9 @@ function initialize_layout_controls()
 
   layoutButtons.on('click', function(event) {
     event.preventDefault();
+    if ($(this).prop('disabled')) {
+      return;
+    }
     setOrientation($(this).data('orientation-choice'));
   });
 
@@ -583,6 +621,12 @@ function initialize_layout_controls()
 
   var storedWidth = typeof Cookies !== 'undefined' ? Cookies.get(widthKey) : null;
   setWidth(storedWidth);
+
+  function handleResize() {
+    applyOrientation(preferredOrientation);
+  }
+
+  $(window).on('resize orientationchange', handleResize);
 }
 
 $(document).ready(function() {
