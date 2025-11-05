@@ -3,8 +3,6 @@
 
 {% block head %}
 <style>
-.slider .ui-slider-range { background: #729fcf; }
-.slider .ui-slider-handle { border-color: #729fcf; }
 .slider { margin-top: 10px; }
 
 .quotelike {
@@ -29,9 +27,6 @@ small.padright { padding-right: 20px; }
   font-weight:bold;
 }
 
-.slider-box { font-size:16px; width:100%; }
-.slider-box .slider-grid { font-size:14px; width:100%; color:#777; }
-
 .button-critical-error { margin-top:10px; }
 
 .question-box { margin-bottom:10px; }
@@ -40,6 +35,7 @@ small.padright { padding-right: 20px; }
 </style>
 
 <link rel="stylesheet" href="{% static 'EvalView/css/jquery-ui.css' %}">
+<link rel="stylesheet" href="{% static 'EvalView/css/scalar-slider.css' %}">
 <script src="{% static 'EvalView/js/jquery-ui.min.js' %}"></script>
 <script src="{% static 'EvalView/js/js.cookie-2.2.1.min.js' %}"></script>
 <script>
@@ -50,13 +46,150 @@ String.prototype.rot13 = function() {
   });
 };
 
+var scalarSliderEnabled = {{ scalar_slider|yesno:"true,false" }};
+var scalarSliderValueCount = 10;
+var scalarSliderMin = 0;
+var scalarSliderMax = 100;
+var scalarSliderStep = scalarSliderValueCount > 1 ? (scalarSliderMax - scalarSliderMin) / (scalarSliderValueCount - 1) : 0;
+if (scalarSliderEnabled) {
+  scalarSliderStep = parseFloat(scalarSliderStep.toFixed(6));
+}
+var scalarSliderValues = [];
+var qualityClasses = [
+  'quality-option-1',
+  'quality-option-2',
+  'quality-option-3',
+  'quality-option-4',
+  'quality-option-5',
+  'quality-option-6',
+  'quality-option-7',
+  'quality-option-8',
+  'quality-option-9',
+  'quality-option-10'
+];
+var sliderUnsetClass = 'quality-option-unset';
+
+if (scalarSliderEnabled) {
+  for (var scalarIndex = 0; scalarIndex < scalarSliderValueCount; scalarIndex += 1) {
+    var scalarValue = scalarSliderMin + scalarSliderStep * scalarIndex;
+    if (scalarIndex === scalarSliderValueCount - 1) {
+      scalarValue = scalarSliderMax;
+    }
+    scalarSliderValues.push(parseFloat(scalarValue.toFixed(4)));
+  }
+}
+
+function snapScalarValue(value)
+{
+  if (!scalarSliderEnabled || scalarSliderValues.length === 0) {
+    return value;
+  }
+
+  var closest = scalarSliderValues[0];
+  for (var i = 1; i < scalarSliderValues.length; i += 1) {
+    if (Math.abs(value - scalarSliderValues[i]) < Math.abs(value - closest)) {
+      closest = scalarSliderValues[i];
+    }
+  }
+  return closest;
+}
+
+function formatScalarValue(value)
+{
+  var numericValue = parseFloat(value);
+  if (isNaN(numericValue)) {
+    return value;
+  }
+
+  if (!scalarSliderEnabled) {
+    return numericValue;
+  }
+
+  var snapped = snapScalarValue(numericValue);
+  return parseFloat(snapped.toFixed(4));
+}
+
+function getQualityClass(value)
+{
+  if (!scalarSliderEnabled || scalarSliderValues.length === 0) {
+    return null;
+  }
+
+  var numericValue = parseFloat(value);
+  if (isNaN(numericValue)) {
+    return null;
+  }
+
+  var closestIndex = 0;
+  var smallestDiff = Math.abs(numericValue - scalarSliderValues[0]);
+  for (var i = 1; i < scalarSliderValues.length; i += 1) {
+    var diff = Math.abs(numericValue - scalarSliderValues[i]);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      closestIndex = i;
+    }
+  }
+
+  if (closestIndex >= qualityClasses.length) {
+    closestIndex = qualityClasses.length - 1;
+  }
+
+  return qualityClasses[closestIndex];
+}
+
+function applySliderQualityClass(sliderElement, value)
+{
+  if (!sliderElement || sliderElement.length === 0 || !scalarSliderEnabled) {
+    return;
+  }
+
+  var range = sliderElement.find('.ui-slider-range');
+  var handle = sliderElement.find('.ui-slider-handle');
+  var touched = sliderElement.data('slider-touched');
+  var classList = qualityClasses.slice();
+  classList.push(sliderUnsetClass);
+
+  range.removeClass(classList.join(' '));
+  handle.removeClass(classList.join(' '));
+
+  if (!touched) {
+    range.addClass(sliderUnsetClass);
+    handle.addClass(sliderUnsetClass);
+    return;
+  }
+
+  var qualityClass = getQualityClass(value);
+  if (qualityClass) {
+    range.addClass(qualityClass);
+    handle.addClass(qualityClass);
+  }
+}
+
 $(document).ready(function() {
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
 
-  $('#slider').slider({orientation: "horizontal", range: "min", change: update_score});
+  var sliderOptions = {orientation: "horizontal", range: "min", change: update_score, slide: update_score};
+  if (scalarSliderEnabled) {
+    sliderOptions.min = scalarSliderMin;
+    sliderOptions.max = scalarSliderMax;
+    sliderOptions.step = scalarSliderStep;
+  }
+  $('#slider').slider(sliderOptions);
+  $('#slider').data('slider-touched', false);
+  applySliderQualityClass($('#slider'), $('#slider').slider('value'));
   $('input[name="score"]').val(-1);
 
-  $('#slider2').slider({orientation: "horizontal", range: "min", change: update_score2});
+  if ($('#slider2').length) {
+    var slider2Options = {orientation: "horizontal", range: "min", change: update_score2, slide: update_score2};
+    if (scalarSliderEnabled) {
+      slider2Options.min = scalarSliderMin;
+      slider2Options.max = scalarSliderMax;
+      slider2Options.step = scalarSliderStep;
+    }
+    $('#slider2').slider(slider2Options);
+    $('#slider2').data('slider-touched', false);
+    applySliderQualityClass($('#slider2'), $('#slider2').slider('value'));
+  }
   $('input[name="score2"]').val(-1);
 
   if (Cookies.get('show-context') == 'yes') {
@@ -102,8 +235,15 @@ function add_end_timestamp()
 function reset_form()
 {
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
-  $('#slider').slider('option', 'value', 0);
-  $('#slider2').slider('option', 'value', 0);
+  var resetValue = scalarSliderEnabled ? scalarSliderMin : 0;
+  $('#slider').data('slider-touched', false);
+  $('#slider').slider('option', 'value', resetValue);
+  applySliderQualityClass($('#slider'), resetValue);
+  if ($('#slider2').length) {
+    $('#slider2').data('slider-touched', false);
+    $('#slider2').slider('option', 'value', resetValue);
+    applySliderQualityClass($('#slider2'), resetValue);
+  }
   $('input[name="score"]').val(-1);
   $('input[name="score2"]').val(-1);
   $('input[name="error1"]').prop("checked", false);
@@ -123,22 +263,62 @@ function validate_form()
   return true;
 }
 
-function update_score()
+function update_score(event, ui)
 {
-  var new_score = $('#slider').slider('value');
-  $('input[name="score"]').val(new_score);
+  var sliderElement = $('#slider');
+  var sliderValue = (ui && ui.value !== undefined) ? ui.value : sliderElement.slider('value');
+  var new_score = formatScalarValue(sliderValue);
+  if (scalarSliderEnabled) {
+    var currentValue = sliderElement.slider('value');
+    if (Math.abs(currentValue - new_score) > 0.000001) {
+      sliderElement.slider('option', 'value', new_score);
+    }
+  }
+  var fromUser = event && event.originalEvent;
+  if (fromUser) {
+    sliderElement.data('slider-touched', true);
+  }
+  applySliderQualityClass(sliderElement, new_score);
+  var storedValue = scalarSliderEnabled ? Math.round(new_score) : new_score;
+  $('input[name="score"]').val(storedValue);
 }
 
-function update_score2()
+function update_score2(event, ui)
 {
-  var new_score = $('#slider2').slider('value');
-  $('input[name="score2"]').val(new_score);
+  if (!$('#slider2').length) {
+    return;
+  }
+  var sliderElement = $('#slider2');
+  var sliderValue = (ui && ui.value !== undefined) ? ui.value : sliderElement.slider('value');
+  var new_score = formatScalarValue(sliderValue);
+  if (scalarSliderEnabled) {
+    var currentValue = sliderElement.slider('value');
+    if (Math.abs(currentValue - new_score) > 0.000001) {
+      sliderElement.slider('option', 'value', new_score);
+    }
+  }
+  var fromUser = event && event.originalEvent;
+  if (fromUser) {
+    sliderElement.data('slider-touched', true);
+  }
+  applySliderQualityClass(sliderElement, new_score);
+  var storedValue = scalarSliderEnabled ? Math.round(new_score) : new_score;
+  $('input[name="score2"]').val(storedValue);
 }
 
 function match_sliders()
 {
+  if (!$('#slider2').length) {
+    return;
+  }
   var score1 = $('input[name="score"]').val();
-  $('#slider2').slider('option', 'value', score1);
+  if (score1 == -1) {
+    return;
+  }
+  var newValue = formatScalarValue(score1);
+  $('#slider2').data('slider-touched', true);
+  $('#slider2').slider('option', 'value', newValue);
+  update_score2(null, {value: newValue});
 }
 -->
 </script>
@@ -209,7 +389,11 @@ function match_sliders()
         <p class="candidate-text"><strong>{{candidate_text|safe}}</strong></p>
     </div>
 
-    {% if sqm %}
+    {% if scalar_slider %}
+      {% with sliderid='' %}
+      {% include 'EvalView/_scalar_slider.html' %}
+      {% endwith %}
+    {% elif sqm %}
       {% with sliderid='' %}
       {% include 'EvalView/_sqm_slider.html' %}
       {% endwith %}
@@ -238,7 +422,11 @@ function match_sliders()
     <div class="col-sm-12">
         <p class="candidate-text"><strong>{{candidate2_text|safe}}</strong></p>
     </div>
-    {% if sqm %}
+    {% if scalar_slider %}
+      {% with sliderid='2' %}
+      {% include 'EvalView/_scalar_slider.html' %}
+      {% endwith %}
+    {% elif sqm %}
       {% with sliderid='2' %}
       {% include 'EvalView/_sqm_slider.html' %}
       {% endwith %}
@@ -289,7 +477,7 @@ function match_sliders()
       {% endif %}
     </td>
     <td style="width:50%;text-align:right;">
-      {% if candidate2_text %}
+      {% if candidate2_text and not scalar_slider %}
       <button onclick="javascript:match_sliders();" accesskey="3" type="button" class="btn"
               title="Match the second slider with the first one. Access key: '3'">Match sliders</button>
       {% endif %}
@@ -300,14 +488,21 @@ function match_sliders()
   </table>
 </div>
 
-{% if sqm %}
+{% if scalar_slider %}
+<br/>
+<div class="question-box">
+  {% with doclvl=doc_guidelines %}
+  {% include 'EvalView/_scalar_instructions.html' %}
+  {% endwith %}
+</div>
+{% elif sqm %}
 <br/>
 <div class="question-box">
   {% with doclvl=doc_guidelines %}
   {% include 'EvalView/_sqm_instructions.html' %}
   {% endwith %}
-  {% endif %}
 </div>
+{% endif %}
 
 {% if source_error %}
 <br/>

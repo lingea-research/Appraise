@@ -1629,6 +1629,7 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     dialect_guidelines = False
     ui_v2 = False
     comments_required = False
+    scalar_slider = False
 
     if 'reportcriticalerror' in campaign_opts:
         critical_error = True
@@ -1639,6 +1640,8 @@ def pairwise_assessment(request, code=None, campaign_name=None):
     if 'sqm' in campaign_opts:
         use_sqm = True
         extra_guidelines = True
+    if 'scalarslider' in campaign_opts:
+        scalar_slider = True
 
     if 'v2' in campaign_opts:
         ui_v2 = True
@@ -1756,6 +1759,7 @@ def pairwise_assessment(request, code=None, campaign_name=None):
         'datask_id': current_task.id,
         'trusted_user': current_task.is_trusted_user(request.user),
         'sqm': use_sqm,
+        'scalar_slider': scalar_slider,
         'critical_error': critical_error,
         'source_error': source_error,
         'guidelines_popup': guidelines_popup,
