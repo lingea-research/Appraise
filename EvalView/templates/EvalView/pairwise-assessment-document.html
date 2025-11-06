@@ -44,7 +44,7 @@
 .preview-box .row { padding-top:0; font-size:95%; /*font-weight:bold;*/ }
 
 .candidate-text.active .diff { background: #ff06; }
-.segment-label { display:block; font-size:small; font-style:italic; }
+.segment-label { display:block; font-size:x-small; font-style:italic; color: gray; }
 
 .toggleable { display:none; }
 .toggleable.active { display:block; }
@@ -60,6 +60,8 @@
 .action-box .btn { margin: 0 40px; }
 /*.document-box .btn { margin: 10px 5px 0; }*/
 .button-reset { background-color: #ddd; }
+
+.campaign-info-box { font-style: italic; font-size: small; color: rgb(183, 183, 183); font-weight: 100; margin-top: -20px; margin-bottom: 20px; }
 
 /* .col-lg-1, .col-lg-10, .col-lg-11, .col-lg-12, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-md-1, .col-md-10, .col-md-11, .col-md-12, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-sm-1, .col-sm-10, .col-sm-11, .col-sm-12, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-xs-1, .col-xs-10, .col-xs-11, .col-xs-12, .col-xs-2, .col-xs-3, .col-xs-4, .col-xs-5, .col-xs-6, .col-xs-7, .col-xs-8, .col-xs-9 { padding-left:10px; padding-right:10px; } */
 
@@ -613,24 +615,24 @@ function _show_error_box(item_box, msg) {
 
 {% block content %}
 
-<div class="alert alert-info">
+<div class="campaign-info-box">
     <table style="width:100%">
         <tr>
             <td style="width:33%;text-align:left;">
-                <strong id="task_progress">
+                <span id="task_progress">
                     {% if trusted_user %}
                     <span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>
                     {% endif %}
                     {{completed_blocks}}/{{total_blocks}} documents,
                     <span id="items-left-counter">{{items_left_in_block}}</span>
                     items left in document
-                </strong>
+                </span>
             </td>
             <td style="width:33%;text-align:center;">
-                <strong>{{campaign}} #{{datask_id}}:Document #{{document_id}}-<span id="current-item-id">{{item_id}}</span></strong>
+                {{campaign}}:#{{datask_id}}:Document #{{document_id}}-<span id="current-item-id">{{item_id}}</span>
             </td>
             <td style="width:33%;text-align:right;">
-                <strong>{% if source_language %}{{source_language}} &rarr; {% endif %}{{target_language}}</strong>
+                {% if source_language %}{{source_language}} &rarr; {% endif %}{{target_language}}
             </td>
         </tr>
     </table>
@@ -899,7 +901,8 @@ function _show_error_box(item_box, msg) {
 
         <div class="target-box document-box quotelike">
             <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-5">
                 <small class="segment-label">{{ candidate1_label }}</small>
             {% if scalar_slider %}
                 {% with sliderid=item.itemID slidernum=1 mono=monolingual doclvl=doc_guidelines %}
@@ -915,7 +918,7 @@ function _show_error_box(item_box, msg) {
                 {% endwith %}
             {% endif %}
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-5">
                 <small class="segment-label">{{ candidate2_label }}</small>
             {% if scalar_slider %}
                 {% with sliderid=item.itemID slidernum=2 mono=monolingual doclvl=doc_guidelines %}

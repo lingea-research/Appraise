@@ -38,12 +38,12 @@
 }
 
 .scalar-slider .ui-slider-range.quality-option-1 {
-  background: #d9534f;
+  background: #d82e28;
 }
 
 .scalar-slider .ui-slider-handle.quality-option-1 {
-  background: #d9534f;
-  border-color: #d9534f;
+  background: #d82e28;
+  border-color: #d82e28;
   color: #fff;
 }
 
@@ -128,12 +128,12 @@
 }
 
 .scalar-slider .ui-slider-range.quality-option-10 {
-  background: #2e7d32;
+  background: #2db034;
 }
 
 .scalar-slider .ui-slider-handle.quality-option-10 {
-  background: #2e7d32;
-  border-color: #2e7d32;
+  background: #2db034;
+  border-color: #2db034;
   color: #fff;
 }
 
