@@ -38,6 +38,7 @@ small.padright { padding-right: 20px; }
 <link rel="stylesheet" href="{% static 'EvalView/css/scalar-slider.css' %}">
 <script src="{% static 'EvalView/js/jquery-ui.min.js' %}"></script>
 <script src="{% static 'EvalView/js/js.cookie-2.2.1.min.js' %}"></script>
+<script src="{% static 'EvalView/js/scalar-slider.js' %}"></script>
 <script>
 <!--
 String.prototype.rot13 = function() {
@@ -47,150 +48,75 @@ String.prototype.rot13 = function() {
 };
 
 var scalarSliderEnabled = {{ scalar_slider|yesno:"true,false" }};
-var scalarSliderValueCount = 10;
-var scalarSliderMin = 0;
-var scalarSliderMax = 100;
-var scalarSliderStep = scalarSliderValueCount > 1 ? (scalarSliderMax - scalarSliderMin) / (scalarSliderValueCount - 1) : 0;
-if (scalarSliderEnabled) {
-  scalarSliderStep = parseFloat(scalarSliderStep.toFixed(6));
-}
-var scalarSliderValues = [];
-var qualityClasses = [
-  'quality-option-1',
-  'quality-option-2',
-  'quality-option-3',
-  'quality-option-4',
-  'quality-option-5',
-  'quality-option-6',
-  'quality-option-7',
-  'quality-option-8',
-  'quality-option-9',
-  'quality-option-10'
-];
-var sliderUnsetClass = 'quality-option-unset';
+var scalarSliderOptions = {
+  enabled: scalarSliderEnabled,
+  valueCount: 10,
+  min: 0,
+  max: 100
+};
+var scalarSliderInstances = {
+  primary: null,
+  secondary: null
+};
 
-if (scalarSliderEnabled) {
-  for (var scalarIndex = 0; scalarIndex < scalarSliderValueCount; scalarIndex += 1) {
-    var scalarValue = scalarSliderMin + scalarSliderStep * scalarIndex;
-    if (scalarIndex === scalarSliderValueCount - 1) {
-      scalarValue = scalarSliderMax;
-    }
-    scalarSliderValues.push(parseFloat(scalarValue.toFixed(4)));
-  }
-}
-
-function snapScalarValue(value)
+function initScalarSlider(selector, hiddenInputName)
 {
-  if (!scalarSliderEnabled || scalarSliderValues.length === 0) {
-    return value;
-  }
-
-  var closest = scalarSliderValues[0];
-  for (var i = 1; i < scalarSliderValues.length; i += 1) {
-    if (Math.abs(value - scalarSliderValues[i]) < Math.abs(value - closest)) {
-      closest = scalarSliderValues[i];
-    }
-  }
-  return closest;
-}
-
-function formatScalarValue(value)
-{
-  var numericValue = parseFloat(value);
-  if (isNaN(numericValue)) {
-    return value;
-  }
-
-  if (!scalarSliderEnabled) {
-    return numericValue;
-  }
-
-  var snapped = snapScalarValue(numericValue);
-  return parseFloat(snapped.toFixed(4));
-}
-
-function getQualityClass(value)
-{
-  if (!scalarSliderEnabled || scalarSliderValues.length === 0) {
+  var $element = $(selector);
+  if (!$element.length) {
     return null;
   }
 
-  var numericValue = parseFloat(value);
-  if (isNaN(numericValue)) {
+  if (!window.Appraise || !Appraise.ScalarSlider) {
     return null;
   }
 
-  var closestIndex = 0;
-  var smallestDiff = Math.abs(numericValue - scalarSliderValues[0]);
-  for (var i = 1; i < scalarSliderValues.length; i += 1) {
-    var diff = Math.abs(numericValue - scalarSliderValues[i]);
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
-      closestIndex = i;
-    }
-  }
-
-  if (closestIndex >= qualityClasses.length) {
-    closestIndex = qualityClasses.length - 1;
-  }
-
-  return qualityClasses[closestIndex];
-}
-
-function applySliderQualityClass(sliderElement, value)
-{
-  if (!sliderElement || sliderElement.length === 0 || !scalarSliderEnabled) {
-    return;
-  }
-
-  var range = sliderElement.find('.ui-slider-range');
-  var handle = sliderElement.find('.ui-slider-handle');
-  var touched = sliderElement.data('slider-touched');
-  var classList = qualityClasses.slice();
-  classList.push(sliderUnsetClass);
-
-  range.removeClass(classList.join(' '));
-  handle.removeClass(classList.join(' '));
-
-  if (!touched) {
-    range.addClass(sliderUnsetClass);
-    handle.addClass(sliderUnsetClass);
-    return;
-  }
-
-  var qualityClass = getQualityClass(value);
-  if (qualityClass) {
-    range.addClass(qualityClass);
-    handle.addClass(qualityClass);
-  }
+  var inputSelector = hiddenInputName ? 'input[name="' + hiddenInputName + '"]' : null;
+  return Appraise.ScalarSlider.create($element, {
+    enabled: scalarSliderOptions.enabled,
+    valueCount: scalarSliderOptions.valueCount,
+    min: scalarSliderOptions.min,
+    max: scalarSliderOptions.max,
+    hiddenInput: inputSelector
+  });
 }
 
 $(document).ready(function() {
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
 
-  var sliderOptions = {orientation: "horizontal", range: "min", change: update_score, slide: update_score};
-  if (scalarSliderEnabled) {
-    sliderOptions.min = scalarSliderMin;
-    sliderOptions.max = scalarSliderMax;
-    sliderOptions.step = scalarSliderStep;
-  }
-  $('#slider').slider(sliderOptions);
-  $('#slider').data('slider-touched', false);
-  applySliderQualityClass($('#slider'), $('#slider').slider('value'));
-  $('input[name="score"]').val(-1);
-
+  scalarSliderInstances.primary = initScalarSlider('#slider', 'score');
   if ($('#slider2').length) {
-    var slider2Options = {orientation: "horizontal", range: "min", change: update_score2, slide: update_score2};
-    if (scalarSliderEnabled) {
-      slider2Options.min = scalarSliderMin;
-      slider2Options.max = scalarSliderMax;
-      slider2Options.step = scalarSliderStep;
-    }
-    $('#slider2').slider(slider2Options);
-    $('#slider2').data('slider-touched', false);
-    applySliderQualityClass($('#slider2'), $('#slider2').slider('value'));
+    scalarSliderInstances.secondary = initScalarSlider('#slider2', 'score2');
   }
-  $('input[name="score2"]').val(-1);
+
+  if (!scalarSliderInstances.primary) {
+    var fallbackOptionsPrimary = {orientation: 'horizontal', range: 'min'};
+    if (scalarSliderOptions.enabled) {
+      fallbackOptionsPrimary.min = scalarSliderOptions.min;
+      fallbackOptionsPrimary.max = scalarSliderOptions.max;
+      if (scalarSliderOptions.valueCount > 1) {
+        var primaryStep = (scalarSliderOptions.max - scalarSliderOptions.min) / (scalarSliderOptions.valueCount - 1);
+        fallbackOptionsPrimary.step = parseFloat(primaryStep.toFixed(6));
+      }
+    }
+    $('#slider').slider(fallbackOptionsPrimary);
+    $('#slider').data('slider-touched', false);
+    $('input[name="score"]').val(-1);
+  }
+
+  if (!scalarSliderInstances.secondary && $('#slider2').length) {
+    var fallbackOptionsSecondary = {orientation: 'horizontal', range: 'min'};
+    if (scalarSliderOptions.enabled) {
+      fallbackOptionsSecondary.min = scalarSliderOptions.min;
+      fallbackOptionsSecondary.max = scalarSliderOptions.max;
+      if (scalarSliderOptions.valueCount > 1) {
+        var secondaryStep = (scalarSliderOptions.max - scalarSliderOptions.min) / (scalarSliderOptions.valueCount - 1);
+        fallbackOptionsSecondary.step = parseFloat(secondaryStep.toFixed(6));
+      }
+    }
+    $('#slider2').slider(fallbackOptionsSecondary);
+    $('#slider2').data('slider-touched', false);
+    $('input[name="score2"]').val(-1);
+  }
 
   if (Cookies.get('show-context') == 'yes') {
     $('.context-sentences').show();
@@ -201,8 +127,14 @@ $(document).ready(function() {
     $('.candidate-text').addClass('active');
   }
 
-  // make the first slider active, so that the score can be changed using left/right keys
-  $('#slider .ui-slider-handle').focus();
+  if (scalarSliderInstances.primary && typeof scalarSliderInstances.primary.focusHandle === 'function') {
+    scalarSliderInstances.primary.focusHandle();
+  } else {
+    $('#slider .ui-slider-handle').focus();
+  }
+
+  $('input[name="score"]').val(-1);
+  $('input[name="score2"]').val(-1);
 
   // Show guidelines in a popup box
   $('#guidelines-modal').modal('show');
@@ -235,17 +167,31 @@ function add_end_timestamp()
 function reset_form()
 {
   $('input[name="start_timestamp"]').val(Date.now()/1000.0);
-  var resetValue = scalarSliderEnabled ? scalarSliderMin : 0;
-  $('#slider').data('slider-touched', false);
-  $('#slider').slider('option', 'value', resetValue);
-  applySliderQualityClass($('#slider'), resetValue);
-  if ($('#slider2').length) {
-    $('#slider2').data('slider-touched', false);
-    $('#slider2').slider('option', 'value', resetValue);
-    applySliderQualityClass($('#slider2'), resetValue);
+  if (scalarSliderInstances.primary && typeof scalarSliderInstances.primary.reset === 'function') {
+    scalarSliderInstances.primary.reset();
+  } else {
+    $('input[name="score"]').val(-1);
+    if ($('#slider').length) {
+      var fallbackValuePrimary = scalarSliderOptions.enabled ? scalarSliderOptions.min : 0;
+      $('#slider').slider('option', 'value', fallbackValuePrimary);
+      $('#slider').data('slider-touched', false);
+    }
   }
+
+  if (scalarSliderInstances.secondary && typeof scalarSliderInstances.secondary.reset === 'function') {
+    scalarSliderInstances.secondary.reset();
+  } else {
+    $('input[name="score2"]').val(-1);
+    if ($('#slider2').length) {
+      var fallbackValueSecondary = scalarSliderOptions.enabled ? scalarSliderOptions.min : 0;
+      $('#slider2').slider('option', 'value', fallbackValueSecondary);
+      $('#slider2').data('slider-touched', false);
+    }
+  }
+
   $('input[name="score"]').val(-1);
   $('input[name="score2"]').val(-1);
+
   $('input[name="error1"]').prop("checked", false);
   $('input[name="error2"]').prop("checked", false);
 }
@@ -263,62 +209,25 @@ function validate_form()
   return true;
 }
 
-function update_score(event, ui)
-{
-  var sliderElement = $('#slider');
-  var sliderValue = (ui && ui.value !== undefined) ? ui.value : sliderElement.slider('value');
-  var new_score = formatScalarValue(sliderValue);
-  if (scalarSliderEnabled) {
-    var currentValue = sliderElement.slider('value');
-    if (Math.abs(currentValue - new_score) > 0.000001) {
-      sliderElement.slider('option', 'value', new_score);
-    }
-  }
-  var fromUser = event && event.originalEvent;
-  if (fromUser) {
-    sliderElement.data('slider-touched', true);
-  }
-  applySliderQualityClass(sliderElement, new_score);
-  var storedValue = scalarSliderEnabled ? Math.round(new_score) : new_score;
-  $('input[name="score"]').val(storedValue);
-}
-
-function update_score2(event, ui)
-{
-  if (!$('#slider2').length) {
-    return;
-  }
-  var sliderElement = $('#slider2');
-  var sliderValue = (ui && ui.value !== undefined) ? ui.value : sliderElement.slider('value');
-  var new_score = formatScalarValue(sliderValue);
-  if (scalarSliderEnabled) {
-    var currentValue = sliderElement.slider('value');
-    if (Math.abs(currentValue - new_score) > 0.000001) {
-      sliderElement.slider('option', 'value', new_score);
-    }
-  }
-  var fromUser = event && event.originalEvent;
-  if (fromUser) {
-    sliderElement.data('slider-touched', true);
-  }
-  applySliderQualityClass(sliderElement, new_score);
-  var storedValue = scalarSliderEnabled ? Math.round(new_score) : new_score;
-  $('input[name="score2"]').val(storedValue);
-}
-
 function match_sliders()
 {
   if (!$('#slider2').length) {
     return;
   }
-  var score1 = $('input[name="score"]').val();
-  if (score1 == -1) {
+
+  if (!scalarSliderInstances.primary || !scalarSliderInstances.secondary) {
     return;
   }
-  var newValue = formatScalarValue(score1);
-  $('#slider2').data('slider-touched', true);
-  $('#slider2').slider('option', 'value', newValue);
-  update_score2(null, {value: newValue});
+
+  var score1 = typeof scalarSliderInstances.primary.getStoredValue === 'function'
+    ? scalarSliderInstances.primary.getStoredValue()
+    : parseFloat($('input[name="score"]').val());
+
+  if (score1 === -1 || isNaN(score1)) {
+    return;
+  }
+
+  scalarSliderInstances.secondary.setValue(score1, true);
 }
 -->
 </script>

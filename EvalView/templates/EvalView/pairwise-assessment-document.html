@@ -68,8 +68,10 @@
 </style>
 
 <link rel="stylesheet" href="{% static 'EvalView/css/jquery-ui.css' %}">
+<link rel="stylesheet" href="{% static 'EvalView/css/scalar-slider.css' %}">
 <script src="{% static 'EvalView/js/jquery-ui.min.js' %}"></script>
 <script src="{% static 'EvalView/js/js.cookie-2.2.1.min.js' %}"></script>
+<script src="{% static 'EvalView/js/scalar-slider.js' %}"></script>
 <script>
     <!--
 var idleTime = 0;
@@ -90,6 +92,15 @@ var ENABLE_COLOR_LABELS = false;
 // (see line 51). This is purely esthetics.
 var ENABLE_UNRESTRICTED_ANNOTATION = true;
 
+var scalarSliderEnabled = {{ scalar_slider|yesno:"true,false" }};
+var scalarSliderOptions = {
+    enabled: scalarSliderEnabled,
+    valueCount: 10,
+    min: 0,
+    max: 100
+};
+var scalarSliderRegistry = {};
+
 String.prototype.rot13 = function() {
     return this.replace(/[a-zA-Z]/g, function(c) {
         return String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
@@ -101,13 +112,123 @@ jQuery.fn.clickToggle = function(a, b) {
     return this.on("click", function(ev) { [b, a][this.$_io ^= 1].call(this, ev) })
 };
 
+function getScalarSliderInstanceById(sliderId) {
+    if (!sliderId) {
+        return null;
+    }
+    return scalarSliderRegistry[sliderId] || null;
+}
+
+function setScalarSliderValueById(sliderId, scoreValue) {
+    var instance = getScalarSliderInstanceById(sliderId);
+    if (!instance) {
+        return false;
+    }
+
+    var numericValue = parseFloat(scoreValue);
+    if (isNaN(numericValue) || numericValue < 0) {
+        instance.reset();
+        return true;
+    }
+
+    instance.setTouched(true);
+    instance.setValue(numericValue, false);
+    return true;
+}
+
+function initializeScalarSliders() {
+    if (!scalarSliderOptions.enabled) {
+        return false;
+    }
+    if (typeof window.Appraise === 'undefined' || !Appraise.ScalarSlider) {
+        return false;
+    }
+
+    var initialized = false;
+    $('.scalar-slider').each(function() {
+        var $element = $(this);
+        var sliderId = $element.attr('id') || '';
+        var hiddenSelector = sliderId ? '#' + sliderId.replace('slider', 'score') : null;
+
+        var instance = Appraise.ScalarSlider.create($element, {
+            enabled: true,
+            valueCount: scalarSliderOptions.valueCount,
+            min: scalarSliderOptions.min,
+            max: scalarSliderOptions.max,
+            hiddenInput: hiddenSelector,
+            onValueChange: function(storedValue) {
+                if (hiddenSelector) {
+                    $(hiddenSelector).val(storedValue);
+                }
+            }
+        });
+
+        if (!instance) {
+            return;
+        }
+
+        scalarSliderRegistry[sliderId] = instance;
+        initialized = true;
+
+        var $hiddenInput = hiddenSelector ? $(hiddenSelector) : null;
+        if ($hiddenInput && $hiddenInput.length) {
+            var existing = parseFloat($hiddenInput.val());
+            if (!isNaN(existing) && existing >= 0) {
+                instance.setTouched(true);
+                instance.setValue(existing, false);
+            } else {
+                instance.reset();
+            }
+        }
+    });
+
+    return initialized;
+}
+
+function applyScoreToSliderElement($slider, scoreValue) {
+    if (!$slider || !$slider.length) {
+        return;
+    }
+
+    var sliderId = $slider.attr('id') || '';
+    if ($slider.hasClass('scalar-slider') && setScalarSliderValueById(sliderId, scoreValue)) {
+        return;
+    }
+
+    var numericValue = parseFloat(scoreValue);
+    if (isNaN(numericValue)) {
+        numericValue = scoreValue;
+    }
+    $slider.slider('option', 'value', numericValue);
+}
+
 $(document).ready(function() {
     // This sets the same starting time for all items, but it is set again when
     // an item is expanded by clicking on it.
     $('input[name="start_timestamp"]').val(Date.now()/1000.0);
 
-    // Bind click events
-    $('.slider').slider({orientation: "horizontal", range: "min", change: update_score });
+    var scalarSlidersInitialized = initializeScalarSliders();
+
+    var sliderInitOptions = {
+        orientation: "horizontal",
+        range: "min",
+        change: update_score,
+        slide: update_score
+    };
+
+    $('.slider').not('.scalar-slider').slider(sliderInitOptions);
+
+    if (!scalarSlidersInitialized && scalarSliderOptions.enabled) {
+        var fallbackOptions = $.extend({}, sliderInitOptions);
+        fallbackOptions.min = scalarSliderOptions.min;
+        fallbackOptions.max = scalarSliderOptions.max;
+        if (scalarSliderOptions.valueCount > 1) {
+            var fallbackStep = (scalarSliderOptions.max - scalarSliderOptions.min) / (scalarSliderOptions.valueCount - 1);
+            fallbackOptions.step = parseFloat(fallbackStep.toFixed(6));
+        }
+        $('.scalar-slider').slider(fallbackOptions);
+    }
+
     $('.button-reset').click(reset_form);
     $('.button-match').click(match_sliders);
     if (ENABLE_UNRESTRICTED_ANNOTATION) {
@@ -133,7 +254,9 @@ $(document).ready(function() {
             item_box.find('.source-btn-done').show();
             var score = $(this).val();
             var slider = $('#' + this.id.replace('score', 'slider'));
-            slider.slider('value', score);
+            if (slider.length) {
+                applyScoreToSliderElement(slider, score);
+            }
             // Change submit button label to 'Update'
             item_box.find('button[name="next_button"]').text('Update');
         } else if(next_item === undefined) {
@@ -228,6 +351,9 @@ function toggle_full_screen() {
 }
 
 function update_score() {
+    if ($(this).hasClass('scalar-slider') && getScalarSliderInstanceById(this.id)) {
+        return;
+    }
     // Assign new score to the corresponding input
     var new_score = $(this).slider('value');
     var new_input = $('#' + this.id.replace('slider', 'score'));
@@ -240,16 +366,20 @@ function reset_form() {
     idleTime = 0;
     item_box.find('input[name="start_timestamp"]').val(Date.now()/1000.0);
     // Reset slider and OK tick
-    var last_score1 = parseInt(item_box.data('item-score1'));
-    var last_score2 = parseInt(item_box.data('item-score2'));
+    var last_score1 = parseInt(item_box.data('item-score1'), 10);
+    var last_score2 = parseInt(item_box.data('item-score2'), 10);
+    if (isNaN(last_score1)) {
+        last_score1 = -1;
+    }
+    if (isNaN(last_score2)) {
+        last_score2 = -1;
+    }
     console.log('Reset to scores: ' + last_score1 + ' ' + last_score2);
-    if(last_score1 == -1 || last_score2 == -1) { // i.e. not scored yet
-        item_box.find('.slider').slider('option', 'value', -1);
+    applyScoreToSliderElement(item_box.find('.slider1'), last_score1);
+    applyScoreToSliderElement(item_box.find('.slider2'), last_score2);
+    if(last_score1 == -1 || last_score2 == -1) {
         item_box.find('.source-btn-done').hide();
         item_box.find('.preview-box').addClass('inactive');
-    } else { // i.e. updating the score
-        item_box.find('.slider1').slider('option', 'value', last_score1);
-        item_box.find('.slider2').slider('option', 'value', last_score2);
     }
     item_box.find('input[name="score1"]').val(last_score1);
     item_box.find('input[name="score2"]').val(last_score2);
@@ -449,8 +579,21 @@ function close_all_items_except_current() {
 function match_sliders() {
     var item_box = $(this).closest('.item-box');
     var score1_box = item_box.find('input[name="score1"]');
-    var slider2 = $('#' + score1_box.attr('id').replace('score1', 'slider2'));
-    slider2.slider('option', 'value', score1_box.val());
+    var score1_value = parseFloat(score1_box.val());
+    if (isNaN(score1_value) || score1_value === -1) {
+        return;
+    }
+
+    var slider2_id = score1_box.attr('id').replace('score1', 'slider2');
+    var slider2 = $('#' + slider2_id);
+    if (!slider2.length) {
+        return;
+    }
+
+    if (!(slider2.hasClass('scalar-slider') && setScalarSliderValueById(slider2_id, score1_value))) {
+        slider2.slider('option', 'value', score1_value);
+        update_score.call(slider2[0]);
+    }
 }
 
 function _show_error_box(item_box, msg) {
@@ -499,10 +642,14 @@ function _show_error_box(item_box, msg) {
             {% for text in priming_question_texts %}
             <p>{{text|safe}}</p>
             {% endfor %}
-            {% if sqm %}
-            {% with mono=monolingual doclvl=doc_guidelines %}
-            {% include 'EvalView/_sqm_instructions.html' %}
-            {% endwith %}
+            {% if scalar_slider %}
+                {% with mono=monolingual doclvl=doc_guidelines %}
+                {% include 'EvalView/_scalar_instructions.html' %}
+                {% endwith %}
+            {% elif sqm %}
+                {% with mono=monolingual doclvl=doc_guidelines %}
+                {% include 'EvalView/_sqm_instructions.html' %}
+                {% endwith %}
             {% endif %}
         </div>
     </div>
@@ -627,7 +774,11 @@ function _show_error_box(item_box, msg) {
                     </span>
 
             <div class="row half-slider target-box toggleable">
-            {% if sqm %}
+            {% if scalar_slider %}
+                {% with sliderid=item.itemID slidernum=1 mono=monolingual doclvl=doc_guidelines %}
+                {% include 'EvalView/_scalar_slider.html' %}
+                {% endwith %}
+            {% elif sqm %}
                 {% with sliderid=item.itemID slidernum=1 mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_sqm_slider.html' %}
                 {% endwith %}
@@ -645,7 +796,11 @@ function _show_error_box(item_box, msg) {
                     </span>
 
             <div class="row half-slider target-box toggleable">
-            {% if sqm %}
+            {% if scalar_slider %}
+                {% with sliderid=item.itemID slidernum=2 mono=monolingual doclvl=doc_guidelines %}
+                {% include 'EvalView/_scalar_slider.html' %}
+                {% endwith %}
+            {% elif sqm %}
                 {% with sliderid=item.itemID slidernum=2 mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_sqm_slider.html' %}
                 {% endwith %}
@@ -662,7 +817,9 @@ function _show_error_box(item_box, msg) {
 
                     <div class="target-box toggleable">
                         <button class="btn button-reset" accesskey="2" type="reset">Reset</button>
+                        {% if not scalar_slider %}
                         <button class="btn button-match" accesskey="3" type="button">Match</button>
+                        {% endif %}
                         <button class="btn button-next btn-primary" name="next_button" accesskey="1"
                                 type="submit" value="{{ item.itemID }}">Submit</button>
                      </div>
@@ -727,10 +884,14 @@ function _show_error_box(item_box, msg) {
                     {% for text in document_question_texts %}
                     <p>{{text|safe}}</p>
                     {% endfor %}
-                    {% if sqm %}
-                    {% with mono=monolingual doclvl=doc_guidelines %}
-                    {% include 'EvalView/_sqm_instructions.html' %}
-                    {% endwith %}
+                    {% if scalar_slider %}
+                        {% with mono=monolingual doclvl=doc_guidelines %}
+                        {% include 'EvalView/_scalar_instructions.html' %}
+                        {% endwith %}
+                    {% elif sqm %}
+                        {% with mono=monolingual doclvl=doc_guidelines %}
+                        {% include 'EvalView/_sqm_instructions.html' %}
+                        {% endwith %}
                     {% endif %}
                 </div>
             </div>
@@ -740,7 +901,11 @@ function _show_error_box(item_box, msg) {
             <div class="row">
             <div class="col-sm-6">
                 <small class="segment-label">{{ candidate1_label }}</small>
-            {% if sqm %}
+            {% if scalar_slider %}
+                {% with sliderid=item.itemID slidernum=1 mono=monolingual doclvl=doc_guidelines %}
+                {% include 'EvalView/_scalar_slider.html' %}
+                {% endwith %}
+            {% elif sqm %}
                 {% with sliderid=item.itemID slidernum=1 mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_sqm_slider.html' %}
                 {% endwith %}
@@ -752,7 +917,11 @@ function _show_error_box(item_box, msg) {
             </div>
             <div class="col-sm-6">
                 <small class="segment-label">{{ candidate2_label }}</small>
-            {% if sqm %}
+            {% if scalar_slider %}
+                {% with sliderid=item.itemID slidernum=2 mono=monolingual doclvl=doc_guidelines %}
+                {% include 'EvalView/_scalar_slider.html' %}
+                {% endwith %}
+            {% elif sqm %}
                 {% with sliderid=item.itemID slidernum=2 mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_sqm_slider.html' %}
                 {% endwith %}
