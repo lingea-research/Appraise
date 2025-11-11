@@ -125,7 +125,10 @@
     this.$element.data('slider-touched', false);
     this.applyQualityClass(this.$element.slider('value'));
     if (this.$hiddenInput && this.$hiddenInput.length) {
-      this.$hiddenInput.val(-1);
+      var existingValue = toNumber(this.$hiddenInput.val(), null);
+      if (existingValue === null || existingValue < 0) {
+        this.$hiddenInput.val(-1);
+      }
     }
     return this;
   };
@@ -134,7 +137,7 @@
     var sliderValue = (ui && ui.value !== undefined) ? ui.value : this.$element.slider('value');
     var formattedValue = this.formatValue(sliderValue);
 
-    if (this.options.enabled) {
+    if (this.options.enabled && event && event.originalEvent) {
       var currentValue = this.$element.slider('value');
       if (Math.abs(currentValue - formattedValue) > EPSILON) {
         this.$element.slider('option', 'value', formattedValue);
@@ -143,6 +146,7 @@
 
     if (event && event.originalEvent) {
       this.setTouched(true);
+      this.$element.removeData('scalarAutoFilled');
     }
 
     this.applyQualityClass(formattedValue);

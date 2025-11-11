@@ -2437,6 +2437,8 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
             'Please take into account the video gaming genre when making your assessments. </br> '
         ]
 
+    sentence_item_count = len([item for item in block_items if not item.isCompleteDocument])
+
     # A part of context used in responses to both Ajax and standard POST
     # requests
     context = {
@@ -2461,6 +2463,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
         'guidelines_popup': guidelines_popup,
         'doc_guidelines': doc_guidelines,
         'highlight_style': highlight_style,
+        'sentence_item_count': sentence_item_count,
     }
 
     if ajax:

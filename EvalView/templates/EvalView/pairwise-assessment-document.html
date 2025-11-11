@@ -102,6 +102,7 @@ var scalarSliderOptions = {
     max: 100
 };
 var scalarSliderRegistry = {};
+var SENTENCE_ITEM_COUNT = {{ sentence_item_count|default:0 }};
 
 String.prototype.rot13 = function() {
     return this.replace(/[a-zA-Z]/g, function(c) {
@@ -121,20 +122,36 @@ function getScalarSliderInstanceById(sliderId) {
     return scalarSliderRegistry[sliderId] || null;
 }
 
-function setScalarSliderValueById(sliderId, scoreValue) {
+function setScalarSliderValueById(sliderId, scoreValue, autoFilled) {
     var instance = getScalarSliderInstanceById(sliderId);
     if (!instance) {
         return false;
     }
 
+    var $sliderElement = (instance.$element && instance.$element.length) ? instance.$element : $('#' + sliderId);
+    var shouldMarkAuto = autoFilled === true;
+
+    function markAutoFilled(flag) {
+        if (!$sliderElement || !$sliderElement.length) {
+            return;
+        }
+        if (flag) {
+            $sliderElement.data('scalarAutoFilled', true);
+        } else {
+            $sliderElement.removeData('scalarAutoFilled');
+        }
+    }
+
     var numericValue = parseFloat(scoreValue);
     if (isNaN(numericValue) || numericValue < 0) {
         instance.reset();
+        markAutoFilled(shouldMarkAuto);
         return true;
     }
 
     instance.setTouched(true);
     instance.setValue(numericValue, false);
+    markAutoFilled(shouldMarkAuto);
     return true;
 }
 
@@ -187,13 +204,13 @@ function initializeScalarSliders() {
     return initialized;
 }
 
-function applyScoreToSliderElement($slider, scoreValue) {
+function applyScoreToSliderElement($slider, scoreValue, autoFilled) {
     if (!$slider || !$slider.length) {
         return;
     }
 
     var sliderId = $slider.attr('id') || '';
-    if ($slider.hasClass('scalar-slider') && setScalarSliderValueById(sliderId, scoreValue)) {
+    if ($slider.hasClass('scalar-slider') && setScalarSliderValueById(sliderId, scoreValue, autoFilled)) {
         return;
     }
 
@@ -202,6 +219,124 @@ function applyScoreToSliderElement($slider, scoreValue) {
         numericValue = scoreValue;
     }
     $slider.slider('option', 'value', numericValue);
+}
+
+function _has_single_sentence_document() {
+    return SENTENCE_ITEM_COUNT === 1;
+}
+
+function _get_document_item_box() {
+    return $('.item-box').filter(function() {
+        var $box = $(this);
+        if ($box.hasClass('quotelike') || $box.hasClass('pseudoquotelike')) {
+            return false;
+        }
+        return $box.find('input[name="score1"]').length && $box.find('input[name="score2"]').length;
+    }).first();
+}
+
+function prepopulateDocumentScoresFromSingleSentence(score1Value, score2Value) {
+    if (!_has_single_sentence_document()) {
+        return;
+    }
+
+    var numericScore1 = parseFloat(score1Value);
+    var numericScore2 = parseFloat(score2Value);
+    if (isNaN(numericScore1) || isNaN(numericScore2) || numericScore1 === -1 || numericScore2 === -1) {
+        return;
+    }
+
+    var $documentItem = _get_document_item_box();
+    if (!$documentItem.length) {
+        return;
+    }
+
+    var docCompletedValue = $documentItem.data('item-completed');
+    if (docCompletedValue === true || String(docCompletedValue).toLowerCase() === 'true') {
+        return;
+    }
+
+    var $docScore1Input = $documentItem.find('input[name="score1"]');
+    var $docScore2Input = $documentItem.find('input[name="score2"]');
+
+    var docScore1 = parseFloat($docScore1Input.val());
+    var docScore2 = parseFloat($docScore2Input.val());
+    var docScore1Unset = isNaN(docScore1) || docScore1 === -1;
+    var docScore2Unset = isNaN(docScore2) || docScore2 === -1;
+
+    var $documentSliders = $documentItem.find('.document-box .slider');
+    var $docSlider1 = $documentSliders.filter('.slider1');
+    var $docSlider2 = $documentSliders.filter('.slider2');
+
+    var sliderTouched = false;
+    var sliderAutoFilled = true;
+    var anySlider = false;
+
+    if ($docSlider1.length) {
+        anySlider = true;
+        var slider1Id = $docSlider1.attr('id') || '';
+        var slider1Instance = slider1Id ? getScalarSliderInstanceById(slider1Id) : null;
+        if (slider1Instance && slider1Instance.isTouched()) {
+            sliderTouched = true;
+        }
+        if ($docSlider1.data('scalarAutoFilled') !== true) {
+            sliderAutoFilled = false;
+        }
+    }
+
+    if ($docSlider2.length) {
+        anySlider = true;
+        var slider2Id = $docSlider2.attr('id') || '';
+        var slider2Instance = slider2Id ? getScalarSliderInstanceById(slider2Id) : null;
+        if (slider2Instance && slider2Instance.isTouched()) {
+            sliderTouched = true;
+        }
+        if ($docSlider2.data('scalarAutoFilled') !== true) {
+            sliderAutoFilled = false;
+        }
+    }
+
+    if (!anySlider) {
+        sliderAutoFilled = false;
+    }
+
+    if (!docScore1Unset && !docScore2Unset && sliderTouched && !sliderAutoFilled) {
+        return;
+    }
+
+    $docScore1Input.val(numericScore1);
+    $docScore2Input.val(numericScore2);
+
+    if ($docSlider1.length) {
+        applyScoreToSliderElement($docSlider1, numericScore1, true);
+    }
+    if ($docSlider2.length) {
+        applyScoreToSliderElement($docSlider2, numericScore2, true);
+    }
+
+    $documentItem.data('item-score1', numericScore1);
+    $documentItem.data('item-score2', numericScore2);
+}
+
+function prepopulateDocumentScoresIfNeeded() {
+    if (!_has_single_sentence_document()) {
+        return;
+    }
+
+    var $sentenceItem = $('.item-box.quotelike').filter(function() {
+        return !$(this).hasClass('pseudoquotelike');
+    }).first();
+
+    if (!$sentenceItem.length) {
+        return;
+    }
+
+    var sentenceScore1 = $sentenceItem.find('input[name="score1"]').val();
+    var sentenceScore2 = $sentenceItem.find('input[name="score2"]').val();
+
+    console.log('Prepopulating document scores from single sentence:', sentenceScore1, sentenceScore2);
+
+    prepopulateDocumentScoresFromSingleSentence(sentenceScore1, sentenceScore2);
 }
 
 $(document).ready(function() {
@@ -289,6 +424,8 @@ $(document).ready(function() {
 
     // Show guidelines in a popup box
     $('#guidelines-modal').modal('show');
+
+    prepopulateDocumentScoresIfNeeded();
 });
 
 function _all_sentences_scored() {
@@ -431,6 +568,12 @@ function submit_form(e) {
     //console.log('score2=', score2, 'prevscore2=', prev_score2);
     if ((score1 == prev_score1) && (score2 == prev_score2)) {
         e.preventDefault();
+
+        if (_all_sentences_scored()) {
+            _enable_document_box();
+            prepopulateDocumentScoresFromSingleSentence(score1, score2);
+        }
+
         _hide_target_box.call(item_box);
         _show_target_box.call(item_box.next());
         return true;
@@ -477,8 +620,10 @@ function submit_form(e) {
                     // Change submit button label to 'Update'
                     item_box.find('button[name="next_button"]').text('Update');
 
-                    if (_all_sentences_scored())
+                    if (_all_sentences_scored()) {
                         _enable_document_box();
+                        prepopulateDocumentScoresFromSingleSentence(score1, score2);
+                    }
                 } else {
                     _change_item_status_icon(item_box, 'none');
 
@@ -516,8 +661,10 @@ function submit_form(e) {
         var citem_idx = $('#current-item-id');
         citem_idx.text( parseInt(citem_idx.text()) + 1 );
 
-        if (_all_sentences_scored())
+        if (_all_sentences_scored()) {
             _enable_document_box();
+            prepopulateDocumentScoresFromSingleSentence(score1, score2);
+        }
     }
 
     return true;
