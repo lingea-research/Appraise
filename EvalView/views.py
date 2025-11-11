@@ -2391,6 +2391,25 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
         'in {0} (right column) convey the original semantics of the source document '
         'in {1} (left column)? '.format(target_language, source_language),
     ]
+    
+    # new guidelines
+    priming_question_texts = [
+        '<p>'
+        f'Below is a document in {source_language} presented sentence by sentence. Each source sentence has been translated by two different systems, A and B, into {target_language}. '
+        'Your task is to rate each translation using the scale below, based on three criteria: <br/>'
+        '</p>'
+        '<p>'
+        f'<strong>Naturalness</strong>: Does the translation sound fluent in {target_language}?<br/>'
+        f'<strong>Accuracy</strong>: Does the translation correctly preserve the meaning of the source text?<br/>'
+        f'<strong>Coherence</strong>: Does the sentence translation fit well in the document context?<br/>'
+        '</p>'
+        '<p><em>Note</em>: You first evaluate each sentence individually, but you should use the entire translation as context.</p>'
+        '<p>Rating scale:</p>'
+    ]
+    document_question_texts = [
+        'For the final step, please look again at each translated document. ' 
+        'Provide one final, overall rating for each translation candidate, judging it as a whole. '
+    ]
 
     monolingual_task = 'monolingual' in campaign_opts
     use_sqm = 'sqm' in campaign_opts

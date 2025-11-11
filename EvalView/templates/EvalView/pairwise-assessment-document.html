@@ -25,9 +25,10 @@
 .quotelike .row, .pseudoquotelike .row { font-size: 16px; margin: 0; padding: 10px 20px; }
 .quotelike.active { background-color: #f7f7f7; }
 
-.question-box { margin-bottom:10px; }
-.question-box p { font-size: 120%; margin: 10px 0 20px; font-style: italic; color: #31708f; }
-.question-box li { font-size: 100%; font-style: italic; color: #31708f; }
+.question-box { margin:20px 0; }
+.question-box p { font-size: 120%; margin: 10px 10px 0; color: #555; }
+.question-box ul { margin: 10px; }
+.question-box li { font-size: 100%; color: #555; }
 .document-box { padding-top: 10px; }
 .document-box p { font-size: 16px; }
 
@@ -864,13 +865,13 @@ function _show_error_box(item_box, msg) {
                     {% if trusted_user %}
                     <span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>
                     {% endif %}
-                    {{completed_blocks}}/{{total_blocks}} documents,
+                    {{completed_blocks}}/{{total_blocks}} screens,
                     <span id="items-left-counter">{{items_left_in_block}}</span>
-                    items left in document
+                    items left on this screen 
                 </span>
             </td>
             <td style="width:33%;text-align:center;">
-                {{campaign}}:#{{datask_id}}:Document #{{document_id}}-<span id="current-item-id">{{item_id}}</span>
+                {{campaign}}:{{datask_id}}:{{document_id}}-<span id="current-item-id">{{item_id}}</span>
             </td>
             <td style="width:33%;text-align:right;">
                 {% if source_language %}{{source_language}} &rarr; {% endif %}{{target_language}}
@@ -879,11 +880,11 @@ function _show_error_box(item_box, msg) {
     </table>
 </div>
 
-<div class="question-box">
+<div class="question-box alert alert-success">
     <div class="row">
         <div class="col-sm-12">
             {% for text in priming_question_texts %}
-            <p>{{text|safe}}</p>
+            {{text|safe}}
             {% endfor %}
             {% if scalar_slider %}
                 {% with mono=monolingual doclvl=doc_guidelines %}
@@ -1121,9 +1122,9 @@ function _show_error_box(item_box, msg) {
 
         {% else %}
 
-        <div class="question-box">
+        <div class="question-box alert alert-success">
             <div class="row">
-                <div class="col-sm-12 question-box">
+                <div class="col-sm-12">
                     {% for text in document_question_texts %}
                     <p>{{text|safe}}</p>
                     {% endfor %}
