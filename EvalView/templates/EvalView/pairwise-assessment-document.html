@@ -103,6 +103,8 @@ var scalarSliderOptions = {
 };
 var scalarSliderRegistry = {};
 var SENTENCE_ITEM_COUNT = {{ sentence_item_count|default:0 }};
+var collectBrowserInfo = {{ collect_browser_info|yesno:"true,false" }};
+var browserInfoValue = '';
 
 String.prototype.rot13 = function() {
     return this.replace(/[a-zA-Z]/g, function(c) {
@@ -153,6 +155,87 @@ function setScalarSliderValueById(sliderId, scoreValue, autoFilled) {
     instance.setValue(numericValue, false);
     markAutoFilled(shouldMarkAuto);
     return true;
+}
+
+function computeBrowserInfo() {
+    if (!collectBrowserInfo) {
+        return '';
+    }
+
+    try {
+        if (navigator.userAgentData && navigator.userAgentData.brands) {
+            var parts = navigator.userAgentData.brands
+                .filter(function(entry) { return entry && entry.brand; })
+                .map(function(entry) {
+                    var version = entry.version ? ' ' + entry.version : '';
+                    return entry.brand + version;
+                });
+            var platform = navigator.userAgentData.platform || '';
+            if (platform) {
+                parts.push('(' + platform + ')');
+            }
+            var joined = parts.join('; ');
+            if (joined) {
+                return joined;
+            }
+        }
+        if (navigator.userAgent) {
+            return navigator.userAgent;
+        }
+    } catch (error) {
+        console.log('Browser info detection failed', error);
+    }
+
+    return '';
+}
+
+function ensureBrowserInfoFieldValue() {
+    if (!collectBrowserInfo) {
+        return;
+    }
+
+    if (!browserInfoValue) {
+        browserInfoValue = computeBrowserInfo();
+    }
+
+    var field = $('#browser-info-field');
+    if (field.length) {
+        field.val(browserInfoValue);
+    }
+}
+
+function serializeFormWithBrowserInfo(form) {
+    if (!collectBrowserInfo) {
+        return form.serialize();
+    }
+
+    ensureBrowserInfoFieldValue();
+
+    var field = $('#browser-info-field');
+    if (!field.length) {
+        return form.serialize();
+    }
+
+    var container = $('#browser-info-container');
+    form.append(field);
+    var serialized = form.serialize();
+    container.append(field);
+    return serialized;
+}
+
+function attachBrowserInfoFieldForSubmit(form) {
+    if (!collectBrowserInfo) {
+        return;
+    }
+
+    ensureBrowserInfoFieldValue();
+
+    var field = $('#browser-info-field');
+    if (!field.length) {
+        return;
+    }
+
+    form.append(field);
 }
 
 function initializeScalarSliders() {
@@ -343,6 +426,8 @@ $(document).ready(function() {
     // This sets the same starting time for all items, but it is set again when
     // an item is expanded by clicking on it.
     $('input[name="start_timestamp"]').val(Date.now()/1000.0);
+
+    ensureBrowserInfoFieldValue();
 
     var scalarSlidersInitialized = initializeScalarSliders();
 
@@ -587,14 +672,15 @@ function submit_form(e) {
         // Say server that the client expect JSON response
         item_box.find('input[name="ajax"]').val('True');
 
-        console.log(item_box.find('form').serialize());
+        var serializedForm = serializeFormWithBrowserInfo(item_box.find('form'));
+        console.log(serializedForm);
 
         // Workflow: Immediately after an Ajax request is sent, annotation
         // moves to the next element opening the next slider; if Ajax request
         // returns an error or the item was not saved, annotation moves back
         // to the previous item.
         $.ajax({
-            data: item_box.find('form').serialize(),
+            data: serializedForm,
             type: 'POST',
             url: '{% url active_page %}',
             dataType: 'json',
@@ -651,6 +737,7 @@ function submit_form(e) {
         });
 
     } else {
+        attachBrowserInfoFieldForSubmit(item_box.find('form'));
         _change_item_status_icon(item_box, 'ok');
         // Move to the next item for smoother reloading
         _hide_target_box.call(item_box);
@@ -688,6 +775,7 @@ function last_form() {
     }
     // Add end timestamp
     item_box.find('input[name="end_timestamp"]').val(Date.now()/1000.0);
+    attachBrowserInfoFieldForSubmit(item_box.find('form'));
 }
 
 function open_all_items() {
@@ -761,6 +849,12 @@ function _show_error_box(item_box, msg) {
 {% endblock %}
 
 {% block content %}
+
+{% if collect_browser_info %}
+<div id="browser-info-container" style="display:none;">
+    <input type="hidden" id="browser-info-field" name="browser_info" value="" />
+</div>
+{% endif %}
 
 <div class="campaign-info-box">
     <table style="width:100%">

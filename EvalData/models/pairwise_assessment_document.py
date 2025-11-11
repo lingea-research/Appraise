@@ -552,6 +552,14 @@ class PairwiseAssessmentDocumentResult(BaseMetadata):
         verbose_name=_('End time'), help_text=_('(in seconds)')
     )
 
+    browser_info = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name=_('Browser info'),
+        help_text=_('(browser type and version when available)'),
+    )
+
     item = models.ForeignKey(
         TextSegmentWithTwoTargetsWithContext,
         db_index=True,
@@ -979,6 +987,7 @@ class PairwiseAssessmentDocumentResult(BaseMetadata):
             attributes_to_extract = attributes_to_extract + (
                 'task__batchNo',  # Batch number
                 'item_id',  # Real item ID
+                #'browser_info',  # Browser info
             )
 
         for _result in qs.values_list(*attributes_to_extract):

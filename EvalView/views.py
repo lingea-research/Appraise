@@ -2127,6 +2127,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
         document_id = request.POST.get('document_id', None)
         start_timestamp = request.POST.get('start_timestamp', None)
         end_timestamp = request.POST.get('end_timestamp', None)
+        browser_info = request.POST.get('browser_info', None)
         ajax = bool(request.POST.get('ajax', None) == 'True')
 
         LOGGER.info('score1=%s, score2=%s, item_id=%s', score1, score2, item_id)
@@ -2174,6 +2175,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
                         score2=score2,
                         start_time=float(start_timestamp),
                         end_time=float(end_timestamp),
+                        browser_info=browser_info,
                         item=current_item,
                         task=current_task,
                         createdBy=request.user,
@@ -2210,6 +2212,8 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
                         current_result.score2 = score2
                         current_result.start_time = float(start_timestamp)
                         current_result.end_time = float(end_timestamp)
+                        if browser_info:
+                            current_result.browser_info = browser_info
                         utc_now = datetime.utcnow().replace(tzinfo=utc)
                         current_result.dateCompleted = utc_now
                         current_result.save()
@@ -2241,6 +2245,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
                                 score2=score2,
                                 start_time=float(start_timestamp),
                                 end_time=float(end_timestamp),
+                                browser_info=browser_info,
                                 item=found_item,
                                 task=current_task,
                                 createdBy=request.user,
@@ -2305,7 +2310,8 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
     escape_eos = 'escapeeos' in campaign_opts
     escape_br = 'escapebr' in campaign_opts
     highlight_style = 'highlightstyle' in campaign_opts
-    scalar_slider = True if 'scalarslider' in campaign_opts else False
+    scalar_slider = 'scalarslider' in campaign_opts
+    collect_browser_info = 'collectbrowserinfo' in campaign_opts
 
     # Get item scores from the latest corresponding results
     block_scores = []
@@ -2464,6 +2470,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
         'doc_guidelines': doc_guidelines,
         'highlight_style': highlight_style,
         'sentence_item_count': sentence_item_count,
+        'collect_browser_info': collect_browser_info,
     }
 
     if ajax:
