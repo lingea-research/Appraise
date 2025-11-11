@@ -1,0 +1,7 @@
+"""Forms for Dashboard app."""
+
+from django import forms
+
+
+class UploadFileForm(forms.Form):
+    file = forms.FileField(label='Select file')

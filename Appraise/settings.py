@@ -76,6 +76,8 @@ else:
     }
 
 FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
 
 # Logging settings for this Django project.
 LOG_LEVEL = logging.DEBUG
@@ -208,6 +210,9 @@ if SECRET_KEY != _SECRET_KEY_DEFAULT:
 MEDIA_ROOT = os.environ.get('APPRAISE_MEDIA_ROOT', '')
 if MEDIA_ROOT and MEDIA_ROOT[-1] != '/':
     raise ImproperlyConfigured('MEDIA_ROOT needs to end with a slash!')
+
+UPLOAD_ROOT = os.path.join(MEDIA_ROOT, 'Upload')
+os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
 # Base context for all views.
 BASE_CONTEXT = {

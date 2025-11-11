@@ -9,12 +9,16 @@ from hashlib import md5
 from inspect import currentframe
 from inspect import getframeinfo
 
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import authenticate
 from django.contrib.auth import login
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
+from django.core.files.storage import FileSystemStorage
 from django.shortcuts import redirect
 from django.shortcuts import render
 
@@ -26,6 +30,7 @@ from Dashboard.utils import generate_confirmation_token
 from EvalData.models import DirectAssessmentTask
 from EvalData.models import TASK_DEFINITIONS
 from EvalData.models import TaskAgenda
+from Dashboard.forms import UploadFileForm
 
 TASK_TYPES = tuple([tup[1] for tup in TASK_DEFINITIONS])
 TASK_RESULTS = tuple([tup[2] for tup in TASK_DEFINITIONS])
@@ -512,3 +517,42 @@ def dashboard(request):
     )
 
     return render(request, 'Dashboard/dashboard.html', template_context)
+
+
+@login_required
+def upload_file(request):
+    if not (request.user.is_staff or request.user.is_superuser):
+        LOGGER.warning(
+            'User "%s" attempted to access upload page without privileges.',
+            request.user.username or 'Anonymous',
+        )
+        raise PermissionDenied
+
+    form = UploadFileForm(request.POST or None, request.FILES or None)
+
+    if request.method == 'POST':
+        if form.is_valid():
+            uploaded_file = form.cleaned_data['file']
+            storage = FileSystemStorage(location=settings.UPLOAD_ROOT)
+
+            try:
+                saved_name = storage.save(uploaded_file.name, uploaded_file)
+            except Exception as exc:  # pylint: disable=broad-except
+                LOGGER.exception('Storing upload failed: %s', exc)
+                messages.error(request, 'Could not store the uploaded file.')
+            else:
+                messages.success(
+                    request, 'Uploaded "%s" successfully.' % saved_name
+                )
+                LOGGER.info(
+                    'User "%s" uploaded file "%s".',
+                    request.user.username or 'Anonymous',
+                    saved_name,
+                )
+                return redirect('upload-file')
+        else:
+            messages.error(request, 'Please choose a valid file to upload.')
+
+    context = {'form': form, 'active_page': 'upload'}
+    context.update(BASE_CONTEXT)
+    return render(request, 'Dashboard/upload.html', context)

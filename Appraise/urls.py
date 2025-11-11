@@ -34,6 +34,7 @@ urlpatterns = [
     ),
     re_path(r'^admin/', admin.site.urls),
     re_path(r'^$', dashboard_views.frontpage, name='frontpage'),
+    re_path(r'^upload/$', dashboard_views.upload_file, name='upload-file'),
     re_path(
         r'^dashboard/create-profile/$',
         dashboard_views.create_profile,
