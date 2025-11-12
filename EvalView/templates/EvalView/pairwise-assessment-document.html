@@ -1060,8 +1060,8 @@ function _show_error_box(item_box, msg) {
                     <span class="source-btn-done glyphicon glyphicon-ok"></span>
 
                     <div class="target-box toggleable">
-                        <button class="btn button-reset" accesskey="2" type="reset">Reset</button>
                         {% if not scalar_slider %}
+                        <button class="btn button-reset" accesskey="2" type="reset">Reset</button>
                         <button class="btn button-match" accesskey="3" type="button">Match</button>
                         {% endif %}
                         <button class="btn button-next btn-primary" name="next_button" accesskey="1"
@@ -1180,9 +1180,11 @@ function _show_error_box(item_box, msg) {
 
             <table class="action-box">
                 <tr>
+                    {% if not scalar_slider %}
                     <td style="width:70%;text-align:left;">
                         <button id="reset{{ item.itemID }}" class="btn button-reset" accesskey="2" type="reset">Reset</button>
                     </td>
+                    {% endif %}
                     <td style="width:30%;text-align:right;">
                         <button id="button-doc" class="btn button-next btn-primary" name="next_button" accesskey="1"
                                 type="submit" value="{{ item.itemID }}">Submit</button>
