@@ -13,6 +13,7 @@ from math import sqrt
 
 from django.core.management.base import CommandError
 from django.http import HttpResponse
+from django.utils.html import escape
 
 from Appraise.utils import _get_logger, _compute_user_total_annotation_time
 from Campaign.utils import _get_campaign_instance
@@ -30,6 +31,299 @@ from EvalData.models.direct_assessment_document import DirectAssessmentDocumentT
 RESULT_TYPE_BY_CLASS_NAME = {tup[1].__name__: tup[2] for tup in TASK_DEFINITIONS}
 
 LOGGER = _get_logger(name=__name__)
+
+
+def _format_duration(seconds, with_space=False):
+    if seconds is None:
+        return None
+
+    total_seconds = max(0, int(seconds))
+    hours = int(floor(total_seconds / 3600))
+    minutes = int(floor((total_seconds % 3600) / 60))
+    separator = ' ' if with_space else ''
+    return f'{hours:0>2d}h{separator}{minutes:0>2d}m'
+
+
+def _format_timestamp_strings(epoch_seconds):
+    if epoch_seconds is None:
+        return ('Never', '')
+
+    dt_value = datetime(1970, 1, 1) + seconds_to_timedelta(epoch_seconds)
+    full_value = str(dt_value).split('.')[0]
+    trimmed_value = ':'.join(full_value.split(':')[:-1])
+    return (full_value, trimmed_value)
+
+
+def _resolve_task_from_object_id(object_id):
+    try:
+        return object_id.get_object_instance()
+    except Exception:  # pylint: disable=broad-except
+        LOGGER.debug('Failed to resolve task object for %s', object_id, exc_info=True)
+        return None
+
+
+def _estimate_total_items(user, campaign, first_result):
+    agenda = TaskAgenda.objects.filter(user=user, campaign=campaign).first()
+    total_items = 0
+    has_items = False
+
+    if agenda:
+        for serialized_task in agenda.serialized_open_tasks():
+            task_obj = _resolve_task_from_object_id(serialized_task)
+            if task_obj and hasattr(task_obj, 'items'):
+                total_items += task_obj.items.count()
+                has_items = True
+
+        if not has_items:
+            for serialized_task in agenda._completed_tasks.all():  # pylint: disable=protected-access
+                task_obj = _resolve_task_from_object_id(serialized_task)
+                if task_obj and hasattr(task_obj, 'items'):
+                    total_items += task_obj.items.count()
+                    has_items = True
+
+        if has_items:
+            return total_items
+
+    if first_result and hasattr(first_result, 'task'):
+        task = first_result.task
+        if task and hasattr(task, 'items'):
+            try:
+                return task.items.count()
+            except Exception:  # pylint: disable=broad-except
+                LOGGER.debug('Failed to count items for task %s', task, exc_info=True)
+
+    return None
+
+
+def _derive_status_emoji(is_active, annotations, total_items, has_data):
+    if not is_active:
+        return '🚫'
+
+    if annotations and total_items is None:
+        return '❌'
+
+    if total_items:
+        if annotations >= total_items:
+            return '✅'
+        if annotations > 0:
+            return '🛠️'
+        return '💤'
+
+    if annotations or has_data:
+        return '🛠️'
+
+    return '💤'
+
+
+def _reliability_sort_value(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float('inf')
+
+
+def _collect_campaign_status_rows(campaign, result_type, campaign_opts):
+    rows = []
+
+    for team in campaign.teams.all():
+        for user in team.members.all():
+            results_qs = result_type.objects.filter(
+                createdBy=user, completed=True, task__campaign=campaign.id
+            )
+            first_result = results_qs.first()
+            data_qs = results_qs
+            is_mqm_or_esa = False
+
+            if (
+                result_type is DirectAssessmentDocumentResult
+                or result_type is PairwiseAssessmentDocumentResult
+            ):
+                data_qs = data_qs.exclude(item__isCompleteDocument=True)
+
+            if (
+                result_type is PairwiseAssessmentResult
+                or result_type is PairwiseAssessmentDocumentResult
+            ):
+                data_rows = list(
+                    data_qs.values_list(
+                        'start_time',
+                        'end_time',
+                        'score1',
+                        'item__itemID',
+                        'item__target1ID',
+                        'item__itemType',
+                        'item__id',
+                    )
+                )
+                time_pairs = [(row[0], row[1]) for row in data_rows]
+            elif 'mqm' in campaign_opts:
+                is_mqm_or_esa = True
+                raw_rows = list(
+                    data_qs.values_list(
+                        'start_time',
+                        'end_time',
+                        'mqm',
+                        'item__itemID',
+                        'item__targetID',
+                        'item__itemType',
+                        'item__id',
+                        'item__documentID',
+                    )
+                )
+                doc_time_pairs = defaultdict(list)
+                for row in raw_rows:
+                    doc_time_pairs[f'{row[7]} ||| {row[4]}'].append((row[0], row[1]))
+
+                time_pairs = [
+                    (
+                        min(start for start, _ in doc_rows),
+                        max(end for _, end in doc_rows),
+                    )
+                    for doc_rows in doc_time_pairs.values()
+                ]
+
+                data_rows = [
+                    (
+                        row[0],
+                        row[1],
+                        -len(json.loads(row[2])),
+                        row[3],
+                        row[4],
+                        row[5],
+                        row[6],
+                    )
+                    for row in raw_rows
+                ]
+            else:
+                data_rows = list(
+                    data_qs.values_list(
+                        'start_time',
+                        'end_time',
+                        'score',
+                        'item__itemID',
+                        'item__targetID',
+                        'item__itemType',
+                        'item__id',
+                    )
+                )
+                time_pairs = [(row[0], row[1]) for row in data_rows]
+
+            reliability = stat_reliable_testing(data_rows, campaign_opts, result_type)
+            annotations = len({row[6] for row in data_rows})
+            start_times = [row[0] for row in data_rows]
+            end_times = [row[1] for row in data_rows]
+            first_epoch = min(start_times) if start_times else None
+            last_epoch = max(end_times) if end_times else None
+            first_full, first_trim = _format_timestamp_strings(first_epoch)
+            last_full, last_trim = _format_timestamp_strings(last_epoch)
+            has_data = bool(data_rows)
+
+            if not has_data:
+                first_trim = ''
+                last_trim = ''
+
+            annotation_time_seconds = (
+                _compute_user_total_annotation_time(time_pairs)
+                if time_pairs
+                else 0
+            )
+            coarse_seconds = None
+            if first_epoch is not None and last_epoch is not None:
+                coarse_seconds = max(int(last_epoch - first_epoch), 0)
+
+            annotation_time_plain = 'n/a'
+            annotation_time_html = ''
+            if annotation_time_seconds:
+                annotation_time_plain = _format_duration(annotation_time_seconds)
+                annotation_time_html = _format_duration(
+                    annotation_time_seconds, with_space=True
+                )
+
+            coarse_plain = None
+            coarse_html = ''
+            if coarse_seconds is not None:
+                coarse_plain = _format_duration(coarse_seconds)
+                coarse_html = _format_duration(coarse_seconds, with_space=True)
+
+            if (
+                is_mqm_or_esa
+                and annotation_time_plain != 'n/a'
+                and coarse_plain
+            ):
+                annotation_time_plain = f'{annotation_time_plain}--{coarse_plain}'
+
+            total_items = _estimate_total_items(user, campaign, first_result)
+            if total_items is None:
+                progress_text = 'Task not found' if annotations else 'No task assigned'
+            elif total_items:
+                completion_ratio = min(annotations / total_items, 1.0)
+                progress_text = f'{annotations}/{total_items} ({completion_ratio:.0%})'
+            else:
+                progress_text = '0/0'
+
+            status_emoji = _derive_status_emoji(
+                user.is_active, annotations, total_items, has_data
+            )
+
+            rows.append(
+                {
+                    'username': user.username,
+                    'is_active': user.is_active,
+                    'annotations': annotations,
+                    'first_modified_epoch': first_epoch,
+                    'first_modified_full': first_full,
+                    'first_modified_trim': first_trim,
+                    'last_modified_epoch': last_epoch,
+                    'last_modified_full': last_full,
+                    'last_modified_trim': last_trim,
+                    'annotation_time_seconds': annotation_time_seconds,
+                    'annotation_time_plain': annotation_time_plain,
+                    'annotation_time_html': annotation_time_html,
+                    'coarse_seconds': coarse_seconds,
+                    'coarse_time_plain': coarse_plain,
+                    'coarse_time_html': coarse_html,
+                    'reliability': reliability,
+                    'progress': progress_text,
+                    'status_emoji': status_emoji,
+                    'total_items': total_items,
+                    'has_data': has_data,
+                }
+            )
+
+    return rows
+
+
+def _sort_campaign_rows(rows, sort_key, include_staff):
+    sort_functions = [
+        lambda row: row['username'].lower(),
+        lambda row: row['is_active'],
+        lambda row: row['annotations'],
+        lambda row: row['first_modified_epoch']
+        if row['first_modified_epoch'] is not None
+        else float('inf'),
+        lambda row: row['last_modified_epoch']
+        if row['last_modified_epoch'] is not None
+        else float('inf'),
+        lambda row: row['annotation_time_seconds'],
+    ]
+
+    if include_staff:
+        sort_functions.append(
+            lambda row: _reliability_sort_value(row['reliability'])
+        )
+
+    default_index = 2
+    if sort_key is not None:
+        try:
+            sort_index = int(sort_key)
+            if sort_index < 0 or sort_index >= len(sort_functions):
+                sort_index = default_index
+        except ValueError:
+            sort_index = default_index
+    else:
+        sort_index = default_index
+
+    rows.sort(key=sort_functions[sort_index])
 
 
 def campaign_status(request, campaign_name, sort_key=None):
@@ -79,147 +373,32 @@ def campaign_status(request, campaign_name, sort_key=None):
     # special handling for ESA
     if "esa" in campaign_opts:
         return campaign_status_esa(campaign)
-    else:
-        return campaign_status_plain(request, campaign, result_type, campaign_opts, sort_key)
+    if "newcampaignstatuspage" in campaign_opts:
+        return campaign_status_new(
+            request, campaign, result_type, campaign_opts, sort_key
+        )
+    return campaign_status_plain(
+        request, campaign, result_type, campaign_opts, sort_key
+    )
 
 
 def campaign_status_plain(request, campaign, result_type, campaign_opts, sort_key):
-    _out = []
-    for team in campaign.teams.all():
-        for user in team.members.all():
+    rows = _collect_campaign_status_rows(campaign, result_type, campaign_opts)
+    _sort_campaign_rows(rows, sort_key, request.user.is_staff)
 
-            _data = result_type.objects.filter(
-                createdBy=user, completed=True, task__campaign=campaign.id
-            )
-            is_mqm_or_esa = False
-
-            # Exclude document scores in document-level tasks, because we want to keep
-            # the numbers reported on the campaign status page consistent across
-            # accounts, which usually include different numbers of document
-            if (
-                result_type is DirectAssessmentDocumentResult
-                or result_type is PairwiseAssessmentDocumentResult
-            ):
-                _data = _data.exclude(item__isCompleteDocument=True)
-            # Contrastive tasks use different field names for target segments/scores
-            if (
-                result_type is PairwiseAssessmentResult
-                or result_type is PairwiseAssessmentDocumentResult
-            ):
-                _data = _data.values_list(
-                    'start_time',
-                    'end_time',
-                    'score1',
-                    'item__itemID',
-                    'item__target1ID',
-                    'item__itemType',
-                    'item__id',
-                )
-            elif "mqm" in campaign_opts:
-                is_mqm_or_esa = True
-                _data = _data.values_list(
-                    'start_time',
-                    'end_time',
-                    'mqm',
-                    'item__itemID',
-                    'item__targetID',
-                    'item__itemType',
-                    'item__id',
-                    'item__documentID',
-                )
-                # compute time override based on document times
-                import collections
-
-                _time_pairs = collections.defaultdict(list)
-                for x in _data:
-                    _time_pairs[x[7] + " ||| " + x[4]].append((x[0], x[1]))
-                _time_pairs = [
-                    (min([x[0] for x in doc_v]), max([x[1] for x in doc_v]))
-                    for doc, doc_v in _time_pairs.items()
-                ]
-                _data = [
-                    (x[0], x[1], -len(json.loads(x[2])), x[3], x[4], x[5], x[6])
-                    for x in _data
-                ]
-            else:
-                _data = _data.values_list(
-                    'start_time',
-                    'end_time',
-                    'score',
-                    'item__itemID',
-                    'item__targetID',
-                    'item__itemType',
-                    'item__id',
-                )
-
-            _reliable = stat_reliable_testing(_data, campaign_opts, result_type)
-
-            # Compute number of annotations
-            _annotations = len(set([x[6] for x in _data]))
-
-            _start_times = [x[0] for x in _data]
-            _end_times = [x[1] for x in _data]
-
-            # Compute first modified time
-            _first_modified_raw = (
-                seconds_to_timedelta(min(_start_times)) if _start_times else None
-            )
-            if _first_modified_raw:
-                _date_modified = datetime(1970, 1, 1) + _first_modified_raw
-                _first_modified = str(_date_modified).split('.')[0]
-            else:
-                _first_modified = 'Never'
-
-            # Compute last modified time
-            _last_modified_raw = (
-                seconds_to_timedelta(max(_end_times)) if _end_times else None
-            )
-            if _last_modified_raw:
-                _date_modified = datetime(1970, 1, 1) + _last_modified_raw
-                _last_modified = str(_date_modified).split('.')[0]
-            else:
-                _last_modified = 'Never'
-
-            # Compute total annotation time
-            if is_mqm_or_esa and _first_modified_raw and _last_modified_raw:
-                # for MQM and ESA compute the lower and upper annotation times
-                # use only the end times
-                _annotation_time_upper = (
-                    _last_modified_raw - _first_modified_raw
-                ).seconds
-                _hours = int(floor(_annotation_time_upper / 3600))
-                _minutes = int(floor((_annotation_time_upper % 3600) / 60))
-                _annotation_time_upper = f'{_hours:0>2d}h{_minutes:0>2d}m'
-            else:
-                _time_pairs = list(zip(_start_times, _end_times))
-                _annotation_time_upper = None
-            _annotation_time = _compute_user_total_annotation_time(_time_pairs)
-
-            # Format total annotation time
-            if _annotation_time:
-                _hours = int(floor(_annotation_time / 3600))
-                _minutes = int(floor((_annotation_time % 3600) / 60))
-                _annotation_time = f'{_hours:0>2d}h{_minutes:0>2d}m'
-                # for MQM and ESA join it together
-                if is_mqm_or_esa and _annotation_time_upper:
-                    _annotation_time = f'{_annotation_time}--{_annotation_time_upper}'
-            else:
-                _annotation_time = 'n/a'
-
-            _item = (
-                user.username,
-                user.is_active,
-                _annotations,
-                _first_modified,
-                _last_modified,
-                _annotation_time,
-            )
-            if request.user.is_staff:
-                _item += (_reliable,)
-
-            _out.append(_item)
-
-    _out.sort(key=lambda x: x[sort_key if sort_key else 2])
+    formatted_rows = []
+    for row in rows:
+        formatted = (
+            row['username'],
+            row['is_active'],
+            row['annotations'],
+            row['first_modified_full'],
+            row['last_modified_full'],
+            row['annotation_time_plain'],
+        )
+        if request.user.is_staff:
+            formatted += (row['reliability'],)
+        formatted_rows.append(formatted)
 
     _header = (
         'username',
@@ -233,8 +412,7 @@ def campaign_status_plain(request, campaign, result_type, campaign_opts, sort_ke
         _header += ('random',)
 
     _txt = []
-    # align everything with the same formatting
-    for _row in [_header] + _out:
+    for _row in [_header] + formatted_rows:
         _local_fmt = '|{0:>15}|{1:>6}|{2:>11}|{3:>20}|{4:>20}|{5:>15}|'
         if request.user.is_staff:
             _local_fmt += '{6:>10}|'
@@ -242,7 +420,75 @@ def campaign_status_plain(request, campaign, result_type, campaign_opts, sort_ke
         _local_out = _local_fmt.format(*_row)
         _txt.append(_local_out)
 
-    return HttpResponse(u'\n'.join(_txt), content_type='text/plain')
+    return HttpResponse('\n'.join(_txt), content_type='text/plain')
+
+
+def campaign_status_new(request, campaign, result_type, campaign_opts, sort_key):
+    rows = _collect_campaign_status_rows(campaign, result_type, campaign_opts)
+    _sort_campaign_rows(rows, sort_key, request.user.is_staff)
+
+    out_str = """
+    <meta charset="UTF-8">
+
+    <style>
+    table, tr, td, th {
+        border: 1px solid black; border-collapse: collapse;
+    }
+    td, th {
+        padding: 5px;
+    }
+    * {
+    font-family: monospace;
+    }
+    </style>\n
+    """
+    out_str += f"<h1>{escape(campaign.campaignName)}</h1>\n"
+    out_str += "<table>\n"
+
+    header = """<tr>
+<th>Username</th>
+<th>Progress</th>
+<th>First Modified</th>
+<th>Last Modified</th>
+<th style="cursor: pointer" title="Very coarse upper bound estimate between the last and the first interaction with the system.">Time (Coarse❔)</th>
+<th style="cursor: pointer" title="Sum of times between any two interactions that are not longer than 10 minutes.">Time (Real❔)</th>
+"""
+
+    if request.user.is_staff:
+        header += "<th>Reliability</th>"
+
+    header += "</tr>\n"
+    out_str += header
+
+    for row in rows:
+        username_cell = escape(row['username'])
+        if row['status_emoji']:
+            username_cell = f"{username_cell} {row['status_emoji']}"
+        if not row['is_active']:
+            username_cell = f"{username_cell} (inactive)"
+
+        progress_cell = escape(row['progress']) if row['progress'] else ''
+        first_modified_cell = escape(row['first_modified_trim']) if row['first_modified_trim'] else ''
+        last_modified_cell = escape(row['last_modified_trim']) if row['last_modified_trim'] else ''
+        coarse_cell = escape(row['coarse_time_html']) if row['coarse_time_html'] else ''
+        real_cell = escape(row['annotation_time_html']) if row['annotation_time_html'] else ''
+
+        out_str += "<tr>"
+        out_str += f"<td>{username_cell}</td>"
+        out_str += f"<td>{progress_cell}</td>"
+        out_str += f"<td>{first_modified_cell}</td>"
+        out_str += f"<td>{last_modified_cell}</td>"
+        out_str += f"<td>{coarse_cell}</td>"
+        out_str += f"<td>{real_cell}</td>"
+
+        if request.user.is_staff:
+            reliability_cell = escape(row['reliability']) if row['reliability'] else 'n/a'
+            out_str += f"<td>{reliability_cell}</td>"
+
+        out_str += "</tr>\n"
+
+    out_str += "</table>"
+    return HttpResponse(out_str, content_type='text/html')
 
 
 def campaign_status_esa(campaign) -> str:
