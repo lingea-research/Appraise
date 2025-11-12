@@ -106,6 +106,9 @@ var scalarSliderRegistry = {};
 var SENTENCE_ITEM_COUNT = {{ sentence_item_count|default:0 }};
 var collectBrowserInfo = {{ collect_browser_info|yesno:"true,false" }};
 var browserInfoValue = '';
+var disableMobile = {{ disable_mobile|yesno:"true,false" }};
+var disableMobileMinWidth = 770;
+var disableMobileAlertId = 'mobile-disabled-alert';
 
 String.prototype.rot13 = function() {
     return this.replace(/[a-zA-Z]/g, function(c) {
@@ -117,6 +120,60 @@ String.prototype.rot13 = function() {
 jQuery.fn.clickToggle = function(a, b) {
     return this.on("click", function(ev) { [b, a][this.$_io ^= 1].call(this, ev) })
 };
+
+function ensureMobileAlertExists() {
+    var $alert = $('#' + disableMobileAlertId);
+    if ($alert.length) {
+        return $alert;
+    }
+
+    $alert = $('<div/>', {
+        id: disableMobileAlertId,
+        class: 'alert alert-danger',
+        role: 'alert'
+    })
+        .text('Screen width is too small to continue this evaluation. Please use a device with wider screen or widen your browser window to 770 pixels or more.')
+        .hide();
+
+    var $mainContainer = $('.container[role="main"]').first();
+    if ($mainContainer.length) {
+        $alert.insertBefore($mainContainer);
+    } else {
+        $('body').prepend($alert);
+    }
+
+    return $alert;
+}
+
+function shouldBlockForMobile() {
+    if (!disableMobile) {
+        return false;
+    }
+
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth || $(window).width();
+    return viewportWidth < disableMobileMinWidth;
+}
+
+function updateMobileVisibility() {
+    if (!disableMobile) {
+        return;
+    }
+
+    var $mainContainer = $('.container[role="main"]').first();
+    if (!$mainContainer.length) {
+        return;
+    }
+
+    var $alert = ensureMobileAlertExists();
+
+    if (shouldBlockForMobile()) {
+        $mainContainer.hide();
+        $alert.show();
+    } else {
+        $mainContainer.show();
+        $alert.hide();
+    }
+}
 
 function getScalarSliderInstanceById(sliderId) {
     if (!sliderId) {
@@ -429,6 +486,11 @@ $(document).ready(function() {
     $('input[name="start_timestamp"]').val(Date.now()/1000.0);
 
     ensureBrowserInfoFieldValue();
+
+    if (disableMobile) {
+        updateMobileVisibility();
+        $(window).on('resize.disablemobile orientationchange.disablemobile', updateMobileVisibility);
+    }
 
     var scalarSlidersInitialized = initializeScalarSliders();
 

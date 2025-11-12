@@ -2312,6 +2312,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
     highlight_style = 'highlightstyle' in campaign_opts
     scalar_slider = 'scalarslider' in campaign_opts
     collect_browser_info = 'collectbrowserinfo' in campaign_opts
+    disable_mobile = 'disablemobile' in campaign_opts
 
     # Get item scores from the latest corresponding results
     block_scores = []
@@ -2490,6 +2491,7 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
         'highlight_style': highlight_style,
         'sentence_item_count': sentence_item_count,
         'collect_browser_info': collect_browser_info,
+        'disable_mobile': disable_mobile,
     }
 
     if ajax:
