@@ -1098,7 +1098,7 @@ function _show_error_box(item_box, msg) {
                 <div class="source-box col-sm-3">
                     <span class="pull-left source-btn-toggle glyphicon glyphicon-menu-down"></span>
                     <span title="Source sentence #{{ item.itemID|add:"1" }}">
-                        <p>{{ scores.segment_text|safe }}<small class="segment-label">- {{ reference_label }}</small></p>
+                        <p>{{ scores.segment_text|safe }}<small class="segment-label">- {{ source_language }} source text</small></p>
                     </span>
                 </div>
                 {% else %}
@@ -1109,7 +1109,7 @@ function _show_error_box(item_box, msg) {
 
                 <div class="{% if monolingual %}col-sm-5{% else %}col-sm-4{% endif %}">
                     <span title="Candidate translation A of source sentence #{{ item.itemID|add:"1" }}">
-                        <p class="source-box candidate-text"><strong>{{scores.candidate1_text|safe}}</strong><small class="segment-label">- {{ candidate1_label }}</small></p>
+                        <p class="source-box candidate-text"><strong>{{scores.candidate1_text|safe}}</strong><small class="segment-label">- {{ candidate1_label }} into {{ target_language }}</small></p>
                     </span>
 
             <div class="row half-slider target-box toggleable">
@@ -1131,7 +1131,7 @@ function _show_error_box(item_box, msg) {
                 </div>
                 <div class="{% if monolingual %}col-sm-5{% else %}col-sm-4{% endif %}">
                     <span title="Candidate translation B of source sentence #{{ item.itemID|add:"1" }}">
-                        <p class="source-box candidate-text"><strong>{{scores.candidate2_text|safe}}</strong><small class="segment-label">- {{ candidate2_label }}</small></p>
+                        <p class="source-box candidate-text"><strong>{{scores.candidate2_text|safe}}</strong><small class="segment-label">- {{ candidate2_label }} into {{ target_language }}</small></p>
                     </span>
 
             <div class="row half-slider target-box toggleable">
@@ -1240,7 +1240,7 @@ function _show_error_box(item_box, msg) {
             <div class="row">
             <div class="col-sm-2"></div>
             <div class="col-sm-5">
-                <small class="segment-label">{{ candidate1_label }}</small>
+                <small class="segment-label">{{ candidate1_label }} in {{ target_language }}</small>
             {% if scalar_slider %}
                 {% with sliderid=item.itemID slidernum=1 mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_scalar_slider.html' %}
@@ -1256,7 +1256,7 @@ function _show_error_box(item_box, msg) {
             {% endif %}
             </div>
             <div class="col-sm-5">
-                <small class="segment-label">{{ candidate2_label }}</small>
+                <small class="segment-label">{{ candidate2_label }} in {{ target_language }}</small>
             {% if scalar_slider %}
                 {% with sliderid=item.itemID slidernum=2 mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_scalar_slider.html' %}

@@ -534,7 +534,7 @@ $(document).ready(function() {
             <!-- NOTE: "safe" means that HTML can be injected, which is needed for video! -->
             {{ item.sourceText|safe }}
         </div>
-        <span class="segment-label">- Source text</span>
+        <span class="segment-label">- {{source_language}} source text</span>
     </div>
     {% endif %}
     {% endfor %}
@@ -571,7 +571,7 @@ $(document).ready(function() {
                         <div class="tutorial-text"></div>
                         
                         <div class="target-text">{{item.targetText}}</div>
-                        <span class="segment-label">- Translation {{ forloop.counter }}</span>
+                        <span class="segment-label">- {{target_language}} translation {{ forloop.counter }}</span>
 
                         <!-- Scalar slider for rating -->
                         <div class="row esa_slider">
