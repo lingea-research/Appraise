@@ -1198,9 +1198,7 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
             item.targetText = item.targetText.replace("\n", "<br/>")
         guidelines = (
             '<p>'
-            f'Below is a fragment of document in {source_language}. '
-            f'Each source sentence has been translated by two different systems into {target_language}. '
-            'Your task is to first mark all errors in each translation, then rate them using the scales below. '
+            f'Below you see a document in {source_language} and two different translations in {target_language}.'
             '</p>'
         )
 

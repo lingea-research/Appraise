@@ -196,13 +196,21 @@
     cursor: pointer;
 }
 
-
 .instruction_sev {
     border-radius: 4px;
-    padding: 0px 2px;
-    font-weight: bold;
+    padding: 0px 5px;
+    color: white;
 }
-
+.instruction_sev_minor {
+    background-color: rgb(255, 150, 167);
+    border: 1px solid rgba(0,0,0,0.15);
+    display: inline-block;
+}
+.instruction_sev_major {
+    background-color: rgb(204, 68, 68);
+    border: 1px solid rgba(0,0,0,0.15);
+    display: inline-block;
+}
 
 .span_missing {
     font-family: monospace, monospace;
