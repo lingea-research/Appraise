@@ -421,30 +421,72 @@ class MQMItemHandler {
 
                 let len_tgt = this.text_target_char_count;
                 
-                // Wire up target chars to highlight shared source
+                // Collect all other target texts for cross-highlighting
+                let other_targets = [];
+                $(".item-box").each((idx, other_el) => {
+                    let $other_el = $(other_el);
+                    // Skip if this is the current item
+                    if ($other_el.attr("data-item-id") === this.el.attr("data-item-id")) {
+                        return;
+                    }
+                    let $other_target = $other_el.find(".target-text");
+                    if ($other_target.length > 0) {
+                        let other_char_count = $other_target.children(".mqm_char").not(".span_missing").length;
+                        other_targets.push({
+                            element: $other_target,
+                            char_count: other_char_count
+                        });
+                    }
+                });
+                
+                // Wire up target chars to highlight shared source and other targets
                 this.el_target.children(".mqm_char").each((i, el) => {
                     // on hover
                     $(el).on("mouseenter", () => {
                         // get char position from attribute
                         let tgt_char_i = Number.parseInt($(el).attr("char_id"))
-                        // approximate position
+                        // approximate position in source
                         let src_char_i = Math.floor(tgt_char_i * len_src / len_tgt)
                         // remove underline from all mqm
                         $sharedSource.children(".mqm_char_src").css("text-decoration", "")
 
                         let highlight_width = Math.floor(16 / 2)
-                        // set underline to the corresponding character and its neighbours
+                        // set underline to the corresponding character and its neighbours in source (green tones)
                         for (let range = highlight_width; range > 0; range--) {
-                            // extrapolate range between #111 and #ddd
-                            let color = (Math.floor((range-1)/highlight_width * (0xd - 0x1))+0x1).toString(16)
+                            // extrapolate range between #161 and #5d5 (green tones)
+                            let color_r = (Math.floor((range-1)/highlight_width * (0x5 - 0x1))+0x1).toString(16)
+                            let color_g = (Math.floor((range-1)/highlight_width * (0xd - 0x6))+0x6).toString(16)
+                            let color_b = (Math.floor((range-1)/highlight_width * (0x5 - 0x1))+0x1).toString(16)
                             for (let i = Math.max(0, src_char_i - range); i <= Math.min(len_src, src_char_i + range); i++) {
-                                $sharedSource.children(`#source_char_${i}`).css("text-decoration", `underline 15% #${color}${color}${color} solid`)
+                                $sharedSource.children(`#source_char_${i}`).css("text-decoration", `underline 20% #${color_r}${color_g}${color_b} solid`)
                             }
                         }
+                        
+                        // Highlight corresponding positions in other target texts
+                        other_targets.forEach((other_target) => {
+                            let other_char_i = Math.floor(tgt_char_i * other_target.char_count / len_tgt)
+                            // Remove previous highlighting from other target
+                            other_target.element.children(".mqm_char").css("text-decoration", "")
+                            
+                            // Apply graduated underline to other target (green tones)
+                            for (let range = highlight_width; range > 0; range--) {
+                                // extrapolate range between #161 and #5d5 (green tones)
+                                let color_r = (Math.floor((range-1)/highlight_width * (0x5 - 0x1))+0x1).toString(16)
+                                let color_g = (Math.floor((range-1)/highlight_width * (0xd - 0x6))+0x6).toString(16)
+                                let color_b = (Math.floor((range-1)/highlight_width * (0x5 - 0x1))+0x1).toString(16)
+                                for (let i = Math.max(0, other_char_i - range); i <= Math.min(other_target.char_count - 1, other_char_i + range); i++) {
+                                    other_target.element.children(`.mqm_char[char_id="${i}"]`).css("text-decoration", `underline 15% #${color_r}${color_g}${color_b} solid`)
+                                }
+                            }
+                        });
                     })
                     // on leave remove all decorations
                     $(el).on("mouseleave", () => {
                         $sharedSource.children(".mqm_char_src").css("text-decoration", "")
+                        // Remove decorations from all other targets
+                        other_targets.forEach((other_target) => {
+                            other_target.element.children(".mqm_char").css("text-decoration", "")
+                        });
                     })
                 })
             } else {
