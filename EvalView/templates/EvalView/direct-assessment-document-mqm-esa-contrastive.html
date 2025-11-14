@@ -1,0 +1,562 @@
+{% extends "Dashboard/base.html" %}
+{% load static %}
+
+{% block head %}
+<style>
+/* Contrastive layout styles */
+.button-box { text-align: center; margin-top:20px; }
+.segment-label { display:block; font-size:x-small; font-style:italic; color: gray; }
+.target-text { background: white !important; }
+.campaign-info-box { font-style: italic; font-size: small; color: rgb(183, 183, 183); font-weight: 100; margin-top: -20px; margin-bottom: 20px; }
+
+.source-text-display {
+    font-size: 16px;
+    margin-top: 10px;
+    padding: 10px;
+    text-align: left;
+    line-height: 1.5;
+}
+
+.source-text-display > audio,
+.source-text-display > video {
+    width: 100%;
+    max-height: 550px;
+}
+
+.source-text-display > img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 500px;
+}
+
+.translations-container {
+    margin-top: 20px;
+}
+
+.item-box {
+    display: block !important;
+    visibility: visible !important;
+}
+
+.target-box {
+    background-color: #fff;
+    position: relative;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.translation-label {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.target-text {
+    min-height: 60px;
+    margin-bottom: 15px;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 10px;
+    background-color: #fafafa;
+    border-radius: 3px;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.target-text .mqm_char {
+    display: inline;
+    visibility: visible;
+}
+
+.target-text br {
+    display: block;
+}
+
+.language_tag_holder {
+    margin-bottom: 10px;
+}
+
+.language_tag {
+    display: inline-block;
+    padding: 5px 15px;
+    background-color: #337ab7;
+    color: white;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.slider-box {
+    margin-top: 10px;
+    padding: 0 10px;
+}
+
+.scalar-slider-grid {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.scalar-slider-grid td {
+    text-align: center;
+    font-weight: bold;
+    color: #333;
+    font-size: 12px;
+}
+
+.button-submit {
+    width: auto !important;
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+.status-indicator {
+    display: inline-block;
+    margin-right: 10px;
+    color: #555;
+    font-size: 18px;
+}
+
+.button-reset {
+    display: inline-block;
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 18px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.button-reset:hover {
+    color: #d9534f;
+}
+
+.sqm-labels {
+    margin-top: 1ex;
+    font-size: x-small;
+    width: 100%;
+    color: #777;
+}
+
+.sqm-label {
+    vertical-align: top;
+    text-align: center;
+}
+
+/* Override for contrastive view */
+.item-box .target-text {
+    user-select: none;
+    cursor: pointer;
+}
+
+.col-md-6 {
+    padding-left: 10px;
+    padding-right: 10px;
+    display: block !important;
+    width: 50% !important;
+    min-height: 1px;
+    box-sizing: border-box;
+}
+
+/* Make sure all mqm_char spans are visible */
+.mqm_char {
+    display: inline !important;
+    visibility: visible !important;
+}
+
+/* Ensure rows display properly */
+.translations-container .row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    margin-left: -10px;
+    margin-right: -10px;
+}
+
+@media (max-width: 991px) {
+    .col-md-6 {
+        width: 100% !important;
+    }
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'EvalView/css/direct-assessment-document-mqm-esa.css' %}">
+<link rel="stylesheet" href="{% static 'EvalView/css/jquery-ui.css' %}">
+<link rel="stylesheet" href="{% static 'EvalView/css/scalar-slider.css' %}">
+<script src="{% static 'EvalView/js/jquery-ui.min.js' %}"></script>
+<script src="{% static 'EvalView/js/js.cookie-2.2.1.min.js' %}"></script>
+<script src="{% static 'EvalView/js/scalar-slider.js' %}"></script>
+<script src="{% static 'EvalView/js/direct-assessment-document-mqm-esa.js' %}"></script>
+
+<script>
+// Scalar slider configuration
+var scalarSliderEnabled = true;
+var scalarSliderOptions = {
+    enabled: scalarSliderEnabled,
+    valueCount: 10,
+    min: 0,
+    max: 100
+};
+var scalarSliderRegistry = {};
+
+function getScalarSliderInstanceById(sliderId) {
+    if (!sliderId) {
+        return null;
+    }
+    return scalarSliderRegistry[sliderId] || null;
+}
+
+function setScalarSliderValueById(sliderId, scoreValue, autoFilled) {
+    var instance = getScalarSliderInstanceById(sliderId);
+    if (!instance) {
+        return false;
+    }
+
+    var $sliderElement = (instance.$element && instance.$element.length) ? instance.$element : $('#' + sliderId);
+    var shouldMarkAuto = autoFilled === true;
+
+    function markAutoFilled(flag) {
+        if (!$sliderElement || !$sliderElement.length) {
+            return;
+        }
+        if (flag) {
+            $sliderElement.data('scalarAutoFilled', true);
+        } else {
+            $sliderElement.removeData('scalarAutoFilled');
+        }
+    }
+
+    var numericValue = parseFloat(scoreValue);
+    if (isNaN(numericValue) || numericValue < 0) {
+        instance.reset();
+        markAutoFilled(shouldMarkAuto);
+        return true;
+    }
+
+    instance.setTouched(true);
+    instance.setValue(numericValue, false);
+    markAutoFilled(shouldMarkAuto);
+    return true;
+}
+
+function initializeScalarSliders() {
+    if (!scalarSliderOptions.enabled) {
+        return false;
+    }
+    if (typeof window.Appraise === 'undefined' || !Appraise.ScalarSlider) {
+        return false;
+    }
+
+    var initialized = false;
+    $('.scalar-slider').each(function() {
+        var $element = $(this);
+        var sliderId = $element.attr('id') || '';
+        var hiddenSelector = sliderId ? '#' + sliderId.replace('slider', 'score') : null;
+
+        var instance = Appraise.ScalarSlider.create($element, {
+            enabled: true,
+            valueCount: scalarSliderOptions.valueCount,
+            min: scalarSliderOptions.min,
+            max: scalarSliderOptions.max,
+            hiddenInput: hiddenSelector,
+            onValueChange: function(storedValue) {
+                if (hiddenSelector) {
+                    $(hiddenSelector).val(storedValue);
+                }
+            }
+        });
+
+        if (!instance) {
+            return;
+        }
+
+        scalarSliderRegistry[sliderId] = instance;
+        initialized = true;
+
+        var $hiddenInput = hiddenSelector ? $(hiddenSelector) : null;
+        if ($hiddenInput && $hiddenInput.length) {
+            var existing = parseFloat($hiddenInput.val());
+            if (!isNaN(existing) && existing >= 0) {
+                instance.setTouched(true);
+                instance.setValue(existing, false);
+            } else {
+                instance.reset();
+            }
+        }
+    });
+
+    return initialized;
+}
+
+$(document).ready(function() {
+    // Initialize scalar sliders after the MQM handler initializes the regular sliders
+    setTimeout(function() {
+        initializeScalarSliders();
+        
+        // Override the button visibility for ESA mode with scalar sliders
+        // Force all submit buttons to be visible
+        $('.button-submit').show().css({
+            'display': 'inline-block',
+            'visibility': 'visible'
+        });
+        
+        // Check if all items are already completed (e.g., on page reload)
+        var allCompleted = true;
+        $('.item-box').each(function() {
+            if ($(this).attr('data-item-completed') != 'True') {
+                allCompleted = false;
+            } else {
+                // Update button text for completed items
+                $(this).find('.button-submit').text('Update');
+                $(this).find('.status-indicator').show();
+            }
+        });
+        
+        if (allCompleted) {
+            $('#button-next-doc').show();
+            $('#button-next-doc-fake').hide();
+        } else {
+            $('#button-next-doc').hide();
+            $('#button-next-doc-fake').show();
+        }
+        
+        // Handle submit button clicks for scalar sliders
+        $('.button-submit').off('click').on('click', function(e) {
+            e.preventDefault();
+            
+            var $button = $(this);
+            var $itemBox = $button.closest('.item-box');
+            var itemId = $itemBox.data('item-id');
+            var $slider = $itemBox.find('.scalar-slider');
+            var sliderId = $slider.attr('id');
+            var sliderInstance = getScalarSliderInstanceById(sliderId);
+            
+            // Check if slider has been touched
+            if (!sliderInstance || !sliderInstance.isTouched()) {
+                alert('Please select a score before submitting.');
+                return false;
+            }
+            
+            // Get the score value
+            var scoreInput = $itemBox.find('input[name="score"]');
+            var score = scoreInput.val();
+            
+            if (!score || score == '-1' || score == '') {
+                alert('Please select a score before submitting.');
+                return false;
+            }
+            
+            // Update timestamps
+            var now = Date.now() / 1000.0;
+            $itemBox.find('input[name="end_timestamp"]').val(now);
+            if (!$itemBox.find('input[name="start_timestamp"]').val()) {
+                $itemBox.find('input[name="start_timestamp"]').val(now);
+            }
+            
+            // Mark as completed
+            $itemBox.attr('data-item-completed', 'True');
+            $itemBox.find('.status-indicator').show();
+            $button.text('Update');
+            
+            // Submit via AJAX
+            $.ajax({
+                data: $itemBox.find('form').serialize(),
+                type: 'POST',
+                url: '',
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Score submitted successfully', data);
+                    
+                    // Check if all items are completed
+                    var allCompleted = true;
+                    $('.item-box').each(function() {
+                        if ($(this).attr('data-item-completed') != 'True') {
+                            allCompleted = false;
+                        }
+                    });
+                    
+                    if (allCompleted) {
+                        $('#button-next-doc').show();
+                        $('#button-next-doc-fake').hide();
+                    }
+                },
+                error: function(x, s, t) {
+                    console.log('Error submitting score:', x, s, t);
+                    alert('Error submitting score. Please try again.');
+                }
+            });
+            
+            return false;
+        });
+    }, 100);
+});
+</script>
+
+{% endblock %}
+
+{% block content %}
+
+{{ mqm_type|json_script:"mqm-type-payload" }}
+
+<div id="error-type-form" class="modal"></div>
+
+<div class="campaign-info-box" style="margin-top: -30px;">
+    <table style="width:100%">
+        <tr>
+            <td style="width:33%;text-align:left;">
+                <span id="task_progress">
+                    Completed {{docs_completed}}/{{docs_total}} documents,
+                    {{items_completed}}/{{items_total}} segments
+                </span>
+            </td>
+            <td style="width:33%;text-align:center;">
+                <button class="btn btn-success btn-sm" id="instructions-show">Hide instructions</button>
+            </td>
+            <td style="width:33%;text-align:right;">
+                {{source_language}} &rarr; {{target_language}}
+            </td>
+        </tr>
+    </table>
+</div>
+
+
+<div class="question-box alert alert-success" id="instructions">
+    {% if guidelines %}
+    <p>{{ guidelines|safe }}</p>
+    {% endif %}
+
+    {% if mqm_type == "MQM" %}
+    {% include 'EvalView/_instructions-mqm.html' %}
+    {% elif mqm_type == "ESA" %}
+    {% include 'EvalView/_instructions-esa-contrastive.html' %}
+    {% else %}
+    Unknown instructions for "{{ mqm_type }}"".
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            {% include 'EvalView/_scalar_instructions.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- Display target translations in columns -->
+<div class="translations-container">
+    <!-- Display source text once at the top -->
+    {% for item, scores in items %}
+    {% if forloop.first %}
+    <div class="source-text-display">
+        <!-- NOTE: "safe" means that HTML can be injected, which is needed for video! -->
+        {{ item.sourceText|safe }}  
+        <span class="segment-label">- Source text</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <div class="row" style="margin-top: 20px; display: flex; flex-wrap: wrap;">
+        {% for item, scores in items %}
+        <div class="col-md-6">
+            <div id="item-{{ item.itemID }}" class="item-box active" data-item-id="{{ item.itemID }}"
+                data-item-completed="{{ scores.completed }}" data-item-score="{{ scores.score }}">
+
+                {{ scores.mqm|json_script:"mqm-payload" }}
+                {{ scores.mqm_orig|json_script:"mqm-payload-orig" }}
+                {{ item.sourceText|json_script:"text-source-payload" }}
+                {{ item.targetText|json_script:"text-target-payload" }}
+                {{ scores.score|json_script:"score-payload" }}
+
+                <form action="{{action_url}}" method="post" item_id="{{ item.itemID }}">
+                    {% csrf_token %}
+
+                    <input name="start_timestamp" type="hidden" value="{{ scores.start_timestamp }}" />
+                    <input name="end_timestamp" type="hidden" value="{{ scores.end_timestamp }}" />
+                    <input name="item_id" type="hidden" value="{{ item.itemID }}" />
+                    <input name="task_id" type="hidden" value="{{ item.id }}" />
+                    <input name="document_id" type="hidden" value="{{ item.documentID }}" />
+                    <input name="score" type="hidden" value="{{ scores.score }}" id="score{{ item.itemID }}" />
+                    <input name="mqm" type="hidden" value="{{ scores.mqm }}" id="mqm{{ item.itemID }}" />
+                    <!-- Tell the server that the client expect JSON response -->
+                    <input name="ajax" type="hidden" value="True" />
+
+                    <!-- Hidden source-text for JS compatibility -->
+                    <div class="source-text" style="display: none;">{{ item.sourceText|safe }}</div>
+
+                    <div class="target-box">
+                        <div class="tutorial-text"></div>
+                        
+                        <div class="target-text">{{item.targetText}}</div>
+                        <span class="segment-label">- Translation {{ forloop.counter }}</span>
+
+                        <!-- Scalar slider for rating -->
+                        <div class="row esa_slider">
+                            <div class="slider-box">
+                                <table class="slider-grid scalar-slider-grid">
+                                    <tr>
+                                        <td class="col-xs-1">1</td>
+                                        <td class="col-xs-1">2</td>
+                                        <td class="col-xs-1">3</td>
+                                        <td class="col-xs-1">4</td>
+                                        <td class="col-xs-1">5</td>
+                                        <td class="col-xs-1">6</td>
+                                        <td class="col-xs-1">7</td>
+                                        <td class="col-xs-1">8</td>
+                                        <td class="col-xs-1">9</td>
+                                        <td class="col-xs-1">10</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-sm-12 slider-bar">
+                                <div id="slider{{ item.itemID }}" class="slider scalar-slider" data-discrete-count="10" data-discrete-min="0" data-discrete-max="100"></div>
+                                <table class="sqm-labels" style="color:#777; margin-top:1ex; font-size:x-small; width:100%;">
+                                    <tr>
+                                        <td class="sqm-label col-xs-2" style="vertical-align:top;text-align:center;">Not acceptable</td>
+                                        <td class="sqm-label col-xs-2" style="vertical-align:top;text-align:center;">Borderline</td>
+                                        <td class="sqm-label col-xs-2" style="vertical-align:top;text-align:center;">Acceptable</td>
+                                        <td class="sqm-label col-xs-2" style="vertical-align:top;text-align:center;">Good</td>
+                                        <td class="sqm-label col-xs-2" style="vertical-align:top;text-align:center;">Very good</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="button-box">
+                            <button class="btn button-submit btn-primary" name="next_button" accesskey="1" type="submit" value="{{ item.itemID }}">Submit</button>
+                            <span class="status-indicator glyphicon glyphicon-ok"></span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+
+<form id="form-next-doc" action="{{action_url}}" method="post">
+    {% csrf_token %}
+    <input name="start_timestamp" type="hidden" value="" />
+    <input name="end_timestamp" type="hidden" value="" />
+    <!--
+    <input name="task_id" type="hidden" value="{{ item.id }}" />
+    <input name="document_id" type="hidden" value="{{ item.documentID }}" /> -->
+    <input name="ajax" type="hidden" value="False" />
+</form>
+
+<button
+    class="btn btn-primary btn-success"
+    style="margin-left: auto; margin-right: auto; display: block;"
+    id="button-next-doc"
+>
+    Continue to next document
+</button>
+
+<button
+    class="btn btn-primary"
+    style="margin-left: auto; margin-right: auto; display: block;"
+    id="button-next-doc-fake"
+    title="Please first complete all items in the document (error spans + scores)"
+>
+    Continue to next document (submit all segments first)
+</button>
+
+{% endblock %}

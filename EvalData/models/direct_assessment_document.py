@@ -278,12 +278,21 @@ class DirectAssessmentDocumentTask(BaseMetadata):
         ]
         unfinished_items = [i for i, r in all_items if not r]
 
-        # documentID + targetID uniquely identifies documents
-        docs_total = len({(i.documentID, i.targetID) for i, r in all_items})
-        items_completed = len([i for i, r in all_items if r and r.completed])
-        docs_completed = docs_total - len(
-            {(i.documentID, i.targetID) for i, r in all_items if r is None or not r.completed}
-        )
+        campaign_opts = str(self.campaign.campaignOptions).lower().split(";")
+        # for Contrastive ESA, just documentID identifies documents
+        if "contrastiveesa" in campaign_opts:
+            docs_total = len({i.documentID for i, r in all_items})
+            items_completed = len([i for i, r in all_items if r and r.completed])
+            docs_completed = docs_total - len(
+                {i.documentID for i, r in all_items if r is None or not r.completed}
+            )
+        # otherwise, documentID + targetID uniquely identifies documents
+        else:
+            docs_total = len({(i.documentID, i.targetID) for i, r in all_items})
+            items_completed = len([i for i, r in all_items if r and r.completed])
+            docs_completed = docs_total - len(
+                {(i.documentID, i.targetID) for i, r in all_items if r is None or not r.completed}
+            )
         items_total = len(all_items)
 
         if not unfinished_items:
@@ -299,11 +308,20 @@ class DirectAssessmentDocumentTask(BaseMetadata):
 
         # things are ordered with batch order
         next_item = unfinished_items[0]
-        doc_items_all = [
-            (i, r)
-            for i, r in all_items
-            # match document name and system
-            if i.documentID == next_item.documentID and i.targetID == next_item.targetID
+
+        if "contrastiveesa" in campaign_opts:
+            doc_items_all = [
+                (i, r)
+                for i, r in all_items
+                # match document name
+                if i.documentID == next_item.documentID
+            ]
+        else:
+            doc_items_all = [
+                (i, r)
+                for i, r in all_items
+                # match document name and system
+                if i.documentID == next_item.documentID and i.targetID == next_item.targetID
         ]
         doc_items = [i for i, r in doc_items_all]
         doc_items_results = [r for i, r in doc_items_all]

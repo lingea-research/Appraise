@@ -26,7 +26,7 @@
 
     width: 40px;
     height: 30px;
-    background-color: #79c;
+    background-color: white;
     border-radius: 6px;
     text-align: center;
     font-size: 19px;
@@ -36,10 +36,12 @@
 
 
 .status-indicator {
+    /*
     display: inline-block;
     position: absolute;
     left: -35px;
     top: 10px;
+    */
     font-size: small;
     width: 20px;
     margin: 0px;
@@ -146,30 +148,21 @@
     background: #a77;
     border-color: #944;
     color: #ecc;
-    font-size: 18pt;
     cursor: not-allowed;
 }
 
 #button-next-doc {
     background: #7a7;
     border-color: #494;
-    font-size: 20pt;
 }
 
 #button-next-doc:hover {
     opacity: 90%;
 }
 
-#instructions-show {
-    font-weight: bold;
-    background-color: #31708f90;
-    width: 150pt;
-    color: black;
-}
+#instructions-show { }
 
 #instructions {
-    background-color: #d9edf7;
-    padding: 10px;
     border-radius: 4px;
 }
 

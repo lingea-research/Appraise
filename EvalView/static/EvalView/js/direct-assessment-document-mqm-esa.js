@@ -409,9 +409,12 @@ class MQMItemHandler {
 
 
         // slider bubble handling
-        this.el_slider.find(".ui-slider-handle").append("<div class='slider-bubble'>100</div>")
+        this.el_slider.find(".ui-slider-handle").append("<div class='slider-bubble'>10</div>")
         let refresh_bubble = () => {
-            this.el_slider.find(".slider-bubble").text(this.el_slider.slider('value'))
+            var value = this.el_slider.slider('value')
+            // Divide by 10 and get ceiled value
+            value = Math.min(10, Math.ceil((value + 0.1) / 10));
+            this.el_slider.find(".slider-bubble").text(value)
         }
         this.el_slider.find(".ui-slider-handle").on("mousedown ontouchstart", () => {
             this.el_slider.find(".slider-bubble").toggle(true);

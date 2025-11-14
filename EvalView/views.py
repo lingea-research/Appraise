@@ -1079,6 +1079,7 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
     Direct assessment document annotation view with MQM/ESA.
     """
     campaign_opts = set((campaign.campaignOptions or "").lower().split(";"))
+    contrastive_esa = 'contrastiveesa' in campaign_opts
 
     # POST means that we want to store
     if request.method == "POST":
@@ -1184,19 +1185,18 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
     target_language = current_task.marketTargetLanguage()
 
     guidelines = ""
-    if 'contrastiveesa' in campaign_opts:
+    if contrastive_esa:
         # escape <br/> tags in the source and target texts
         for item in doc_items:
             item.sourceText = item.sourceText.replace(
                 "&lt;eos&gt;", "<code>&lt;eos&gt;</code>"
             ).replace("&lt;br/&gt;", "<br/>")
-            # HTML-esaping on the target text will not work because MQM/ESA tag insertion prevents it
         guidelines = (
-            'You are provided with a text in {0} and its candidate translation(s) into {1}. '
-            'Please assess the quality of the translation(s) following the detailed guidelines below. '.format(
-                source_language,
-                target_language,
-            )
+            '<p>'
+            f'Below is a fragment of document in {source_language}. '
+            f'Each source sentence has been translated by two different systems into {target_language}. '
+            'Your task is to first mark all errors in each translation, then rate them using the scales below. '
+            '</p>'
         )
 
     # A part of context used in responses to both Ajax and standard POST requests
@@ -1226,14 +1226,18 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
         return JsonResponse(context)
 
     page_context = {
-        'items': zip(doc_items, doc_items_results),
+        'items': list(zip(doc_items, doc_items_results)),
         'reference_label': 'Source text',
         'candidate_label': 'Candidate translation',
     }
     context.update(page_context)
     context.update(BASE_CONTEXT)
 
-    return render(request, 'EvalView/direct-assessment-document-mqm-esa.html', context)
+    if contrastive_esa:
+        html_page = 'EvalView/direct-assessment-document-mqm-esa-contrastive.html'
+    else:
+        html_page = 'EvalView/direct-assessment-document-mqm-esa.html'
+    return render(request, html_page, context)
 
 
 # pylint: disable=C0103,C0330
