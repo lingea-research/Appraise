@@ -89,7 +89,8 @@
 
 .question-box {
     margin-bottom: 10px;
-    color: #257;
+    color: #555;
+
 }
 
 .item-box {
@@ -198,18 +199,21 @@
 
 .instruction_sev {
     border-radius: 4px;
-    padding: 0px 5px;
+    padding: 2px 5px 0px 5px;
+    margin: 1px;
     color: white;
 }
 .instruction_sev_minor {
     background-color: rgb(255, 150, 167);
     border: 1px solid rgba(0,0,0,0.15);
     display: inline-block;
+    font-size: 90%;
 }
 .instruction_sev_major {
     background-color: rgb(204, 68, 68);
     border: 1px solid rgba(0,0,0,0.15);
     display: inline-block;
+    font-size: 90%;
 }
 
 .span_missing {

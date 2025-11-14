@@ -26,7 +26,7 @@
 .quotelike.active { background-color: #f7f7f7; }
 
 .question-box { margin:20px 0; }
-.question-box p { font-size: 120%; margin: 10px 10px 0; color: #555; }
+.question-box p { margin: 10px 10px 0; color: #555; }
 .question-box ul { margin: 10px; }
 .question-box li { font-size: 100%; color: #555; }
 .document-box { padding-top: 10px; }
@@ -560,10 +560,21 @@ $(document).ready(function() {
     $('#button-show-diff').click(toggle_diff);
     if (Cookies.get('show-diff') != 'no') {
       $('.candidate-text').addClass('active');
+      $('#button-show-diff').text('Hide differences');
+    } else {
+      $('#button-show-diff').text('Show differences');
     }
     $('#button-full-screen').click(toggle_full_screen);
     if (Cookies.get('full-screen') != 'no') {
       $('.container').addClass('full-screen');
+      $('#button-full-screen').text('Narrow screen');
+    } else {
+      $('#button-full-screen').text('Widen screen');
+    }
+    $('#button-toggle-instructions').click(toggle_instructions);
+    if (Cookies.get('show-instructions') == 'no') {
+      $('.question-box').first().find('.additional-instructions').hide();
+      $('#button-toggle-instructions').text('Show instructions');
     }
 
     $('#button-open-all').click(open_all_items);
@@ -621,8 +632,10 @@ function toggle_diff() {
     var isActive = $('.candidate-text').first().hasClass('active');
     if (isActive) {
         $('.candidate-text').removeClass('active');
+        $('#button-show-diff').text('Show differences');
     } else {
         $('.candidate-text').addClass('active');
+        $('#button-show-diff').text('Hide differences');
     }
     Cookies.set('show-diff', isActive ? 'no' : 'yes', { sameSite: 'strict' });
 }
@@ -631,10 +644,25 @@ function toggle_full_screen() {
     var isFullScreen = $('.container').first().hasClass('full-screen');
     if (isFullScreen) {
         $('.container').removeClass('full-screen');
+        $('#button-full-screen').text('Widen screen');
     } else {
         $('.container').addClass('full-screen');
+        $('#button-full-screen').text('Narrow screen');
     }
     Cookies.set('full-screen', isFullScreen ? 'no' : 'yes', { sameSite: 'strict' });
+}
+
+function toggle_instructions() {
+    var $instructionsContent = $('.question-box').first().find('.additional-instructions');
+    var isHidden = $instructionsContent.is(':hidden');
+    if (isHidden) {
+        $instructionsContent.show();
+        $('#button-toggle-instructions').text('Hide instructions');
+    } else {
+        $instructionsContent.hide();
+        $('#button-toggle-instructions').text('Show instructions');
+    }
+    Cookies.set('show-instructions', isHidden ? 'yes' : 'no', { sameSite: 'strict' });
 }
 
 function update_score() {
@@ -948,7 +976,10 @@ function _show_error_box(item_box, msg) {
             {% for text in priming_question_texts %}
             {{text|safe}}
             {% endfor %}
+            <div class="additional-instructions">
             {% if scalar_slider %}
+                <p><em>Note</em>: You first evaluate each sentence individually, but you should use the entire translation as context.</p>
+                <p>Rating scale:</p>
                 {% with mono=monolingual doclvl=doc_guidelines %}
                 {% include 'EvalView/_scalar_instructions.html' %}
                 {% endwith %}
@@ -957,13 +988,15 @@ function _show_error_box(item_box, msg) {
                 {% include 'EvalView/_sqm_instructions.html' %}
                 {% endwith %}
             {% endif %}
+            </div>
         </div>
     </div>
     <div class="row">
         <div class="col-sm-12">
             <p class="pull-left control-box">
-            <button id="button-show-diff" class="btn btn-info btn-sm">Show/Hide diff.</button>
-            <button id="button-full-screen" class="btn btn-info btn-sm">Wide/Narrow screen</button>
+            <button id="button-toggle-instructions" class="btn btn-info btn-sm">Hide instructions</button>
+            <button id="button-show-diff" class="btn btn-info btn-sm">Hide differences</button>
+            <button id="button-full-screen" class="btn btn-info btn-sm">Narrow screen</button>
             </p>
             <p class="pull-right control-box">
             <button id="button-open-all" class="btn btn-default btn-sm">Expand all items</button>
@@ -1249,6 +1282,7 @@ function _show_error_box(item_box, msg) {
                     {% endif %}
                     <td style="width:30%;text-align:right;">
                         <button id="button-doc" class="btn button-next btn-primary" name="next_button" accesskey="1"
+                                title="Please first complete all segments in the document"
                                 type="submit" value="{{ item.itemID }}">Submit and continue to next document</button>
                     </td>
                 </tr>

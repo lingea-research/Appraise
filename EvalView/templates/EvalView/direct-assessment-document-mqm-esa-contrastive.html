@@ -7,7 +7,7 @@
 .button-box { text-align: center; margin-top:20px; }
 .segment-label { display:block; font-size:x-small; font-style:italic; color: gray; }
 .target-text { background: white !important; }
-.campaign-info-box { font-style: italic; font-size: small; color: rgb(183, 183, 183); font-weight: 100; margin-top: -20px; margin-bottom: 20px; }
+.campaign-info-box { font-style:italic; font-size: small; color: rgb(183, 183, 183); font-weight: 100; margin-top: -20px; margin-bottom: 20px; }
 
 .source-text-display {
     font-size: 16px;
@@ -335,6 +335,19 @@ function validateAndUpdateButtonState($itemBox) {
     }
 }
 
+function toggle_instructions() {
+    var $instructionsContent = $('#instructions').find('.additional-instructions');
+    var isHidden = $instructionsContent.is(':hidden');
+    if (isHidden) {
+        $instructionsContent.show();
+        $('#button-toggle-instructions').text('Hide instructions');
+    } else {
+        $instructionsContent.hide();
+        $('#button-toggle-instructions').text('Show instructions');
+    }
+    Cookies.set('show-instructions', isHidden ? 'yes' : 'no', { sameSite: 'strict' });
+}
+
 $(document).ready(function() {
     // Initialize scalar sliders after the MQM handler initializes the regular sliders
     setTimeout(function() {
@@ -445,6 +458,13 @@ $(document).ready(function() {
             return false;
         });
     }, 100);
+
+    // Initialize toggle instructions button
+    $('#button-toggle-instructions').click(toggle_instructions);
+    if (Cookies.get('show-instructions') == 'no') {
+        $('#instructions').find('.additional-instructions').hide();
+        $('#button-toggle-instructions').text('Show instructions');
+    }
 });
 </script>
 
@@ -466,7 +486,7 @@ $(document).ready(function() {
                 </span>
             </td>
             <td style="width:33%;text-align:center;">
-                <button class="btn btn-success btn-sm" id="instructions-show">Show instructions</button>
+                {{campaign}}:{{datask_id}}:{{document_id}}-<span id="current-item-id">{{item_id}}</span>
             </td>
             <td style="width:33%;text-align:right;">
                 {{source_language}} &rarr; {{target_language}}
@@ -476,11 +496,12 @@ $(document).ready(function() {
 </div>
 
 
-<div class="question-box alert alert-success" id="instructions" style="display: none;">
+<div class="question-box alert alert-success" id="instructions">
     {% if guidelines %}
     <p>{{ guidelines|safe }}</p>
     {% endif %}
 
+    <div class="additional-instructions">
     {% if mqm_type == "MQM" %}
     {% include 'EvalView/_instructions-mqm.html' %}
     {% elif mqm_type == "ESA" %}
@@ -492,6 +513,13 @@ $(document).ready(function() {
     <div class="row">
         <div class="col-md-12">
             {% include 'EvalView/_scalar_instructions.html' %}
+        </div>
+    </div>
+    </div>
+
+    <div class="row" style="margin-top: 10px;">
+        <div class="col-md-12">
+            <button id="button-toggle-instructions" class="btn btn-info btn-sm">Hide instructions</button>
         </div>
     </div>
 </div>
@@ -612,7 +640,7 @@ $(document).ready(function() {
     class="btn btn-primary"
     style="margin-left: auto; margin-right: auto; display: block;"
     id="button-next-doc-fake"
-    title="Please first complete all items in the document (error marking + rating )"
+    title="Please first complete all segments in the document (error marking + rating)"
 >
     Continue to next document (submit all segments first)
 </button>

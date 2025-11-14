@@ -1199,6 +1199,12 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
         guidelines = (
             '<p>'
             f'Below you see a document in {source_language} and two different translations in {target_language}.'
+            'Your task:'
+            '<ol>'
+            '<li>Read the source text and two competing translations.</li>'
+            '<li>Highlight all translation errors in each translation.</li>'
+            '<li>Rate each translation using the scale provided below.</li>'
+            '</ol>'
             '</p>'
         )
 
@@ -2411,8 +2417,6 @@ def pairwise_assessment_document(request, code=None, campaign_name=None):
         f'<strong>Accuracy</strong>: Does the translation correctly preserve the meaning of the source text?<br/>'
         f'<strong>Coherence</strong>: Does the sentence translation fit well in the document context?<br/>'
         '</p>'
-        '<p><em>Note</em>: You first evaluate each sentence individually, but you should use the entire translation as context.</p>'
-        '<p>Rating scale:</p>'
     ]
     document_question_texts = [
         'For the final step, please look again at each translated document. ' 
