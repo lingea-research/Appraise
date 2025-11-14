@@ -405,12 +405,12 @@ $(document).ready(function() {
         <tr>
             <td style="width:33%;text-align:left;">
                 <span id="task_progress">
-                    Completed {{docs_completed}}/{{docs_total}} documents,
-                    {{items_completed}}/{{items_total}} segments
+                    Completed {{docs_completed}}/{{docs_total}} screens
+                    <!-- {{items_completed}}/{{items_total}} items -->
                 </span>
             </td>
             <td style="width:33%;text-align:center;">
-                <button class="btn btn-success btn-sm" id="instructions-show">Hide instructions</button>
+                <button class="btn btn-success btn-sm" id="instructions-show">Show instructions</button>
             </td>
             <td style="width:33%;text-align:right;">
                 {{source_language}} &rarr; {{target_language}}
@@ -420,7 +420,7 @@ $(document).ready(function() {
 </div>
 
 
-<div class="question-box alert alert-success" id="instructions">
+<div class="question-box alert alert-success" id="instructions" style="display: none;">
     {% if guidelines %}
     <p>{{ guidelines|safe }}</p>
     {% endif %}
