@@ -593,6 +593,11 @@ class MQMItemHandler {
         })
 
         this.check_status()
+        
+        // Trigger validation for contrastive ESA mode
+        if (this.contrastive_esa && typeof validateAndUpdateButtonState === 'function') {
+            validateAndUpdateButtonState(this.el);
+        }
     }
 
     reset() {

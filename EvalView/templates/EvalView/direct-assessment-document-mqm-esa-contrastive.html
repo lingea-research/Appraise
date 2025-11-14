@@ -263,6 +263,13 @@ function initializeScalarSliders() {
                 if (hiddenSelector) {
                     $(hiddenSelector).val(storedValue);
                 }
+                // Validate button state when slider value changes
+                var $itemBox = $element.closest('.item-box');
+                if ($itemBox.length) {
+                    setTimeout(function() {
+                        validateAndUpdateButtonState($itemBox);
+                    }, 50);
+                }
             }
         });
 
@@ -288,6 +295,46 @@ function initializeScalarSliders() {
     return initialized;
 }
 
+// Function to validate and update button state (global scope for access from JS file)
+function validateAndUpdateButtonState($itemBox) {
+    var $button = $itemBox.find('.button-submit');
+    var scoreInput = $itemBox.find('input[name="score"]');
+    var score = parseFloat(scoreInput.val());
+    var mqmInput = $itemBox.find('input[name="mqm"]');
+    var mqmData = [];
+    
+    try {
+        mqmData = JSON.parse(mqmInput.val() || '[]');
+    } catch(e) {
+        mqmData = [];
+    }
+    
+    // Filter out neutral and undecided errors (they don't count as actual errors)
+    var actualErrors = mqmData.filter(function(error) {
+        return error.severity !== 'neutral' && error.severity !== 'undecided';
+    });
+    
+    console.log('Validating button state:', {
+        itemId: $itemBox.data('item-id'),
+        score: score,
+        totalErrors: mqmData.length,
+        actualErrors: actualErrors.length,
+        mqmData: mqmData
+    });
+    
+    // For contrastive ESA: score < 80 (displayed as < 8) with no errors should disable button
+    // Score values are 0-100, displayed scale is 1-10
+    if (!isNaN(score) && score < 80 && actualErrors.length === 0) {
+        $button.prop('disabled', true).css('opacity', '0.5');
+        $button.attr('title', 'Cannot submit a score lower than 8 without marking errors');
+        console.log('Button disabled - score < 80 and no errors');
+    } else {
+        $button.prop('disabled', false).css('opacity', '1');
+        $button.removeAttr('title');
+        console.log('Button enabled - either score >= 80 or has errors');
+    }
+}
+
 $(document).ready(function() {
     // Initialize scalar sliders after the MQM handler initializes the regular sliders
     setTimeout(function() {
@@ -310,6 +357,9 @@ $(document).ready(function() {
                 $(this).find('.button-submit').text('Update');
                 $(this).find('.status-indicator').show();
             }
+            
+            // Validate button state for each item
+            validateAndUpdateButtonState($(this));
         });
         
         if (allCompleted) {
@@ -330,6 +380,12 @@ $(document).ready(function() {
             var $slider = $itemBox.find('.scalar-slider');
             var sliderId = $slider.attr('id');
             var sliderInstance = getScalarSliderInstanceById(sliderId);
+            
+            // Check if button is disabled
+            if ($button.prop('disabled')) {
+                alert('Cannot submit a score lower than 8 without marking errors in the translation.');
+                return false;
+            }
             
             // Check if slider has been touched
             if (!sliderInstance || !sliderInstance.isTouched()) {
@@ -556,7 +612,7 @@ $(document).ready(function() {
     class="btn btn-primary"
     style="margin-left: auto; margin-right: auto; display: block;"
     id="button-next-doc-fake"
-    title="Please first complete all items in the document (error spans + scores)"
+    title="Please first complete all items in the document (error marking + rating )"
 >
     Continue to next document (submit all segments first)
 </button>
