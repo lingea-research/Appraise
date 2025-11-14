@@ -1108,19 +1108,24 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
             LOGGER.error(error_msg)
             item_saved = False
         else:
-            DirectAssessmentDocumentResult.objects.create(
-                score=score,
-                mqm=mqm,
-                start_time=float(start_timestamp),
-                end_time=float(end_timestamp),
+            # Use update_or_create to prevent duplicate saves when items are
+            # submitted multiple times (e.g., on Submit button click + Continue button click)
+            result, created = DirectAssessmentDocumentResult.objects.update_or_create(
                 item=list(db_item)[0],
                 task=current_task,
                 createdBy=request.user,
-                activated=False,
-                completed=True,
-                dateCompleted=datetime.utcnow().replace(tzinfo=utc),
+                defaults={
+                    'score': score,
+                    'mqm': mqm,
+                    'start_time': float(start_timestamp),
+                    'end_time': float(end_timestamp),
+                    'activated': False,
+                    'completed': True,
+                    'dateCompleted': datetime.utcnow().replace(tzinfo=utc),
+                }
             )
-            error_msg = f'Item {task_id} (itemID={item_id}) saved'
+            action = 'created' if created else 'updated'
+            error_msg = f'Item {task_id} (itemID={item_id}) {action}'
             LOGGER.info(error_msg)
             item_saved = True
 
