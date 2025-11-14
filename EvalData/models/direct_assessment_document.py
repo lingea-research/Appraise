@@ -310,12 +310,7 @@ class DirectAssessmentDocumentTask(BaseMetadata):
         next_item = unfinished_items[0]
 
         if "contrastiveesa" in campaign_opts:
-            doc_items_all = [
-                (i, r)
-                for i, r in all_items
-                # match document name
-                if i.documentID == next_item.documentID
-            ]
+            doc_items_all = [(i, r) for i, r in all_items if i.documentID == next_item.documentID ]
         else:
             doc_items_all = [
                 (i, r)
