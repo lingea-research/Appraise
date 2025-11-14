@@ -1188,9 +1188,9 @@ def direct_assessment_document_mqmesa(campaign, current_task, request):
     if contrastive_esa:
         # escape <br/> tags in the source and target texts
         for item in doc_items:
-            item.sourceText = item.sourceText.replace(
-                "&lt;eos&gt;", "<code>&lt;eos&gt;</code>"
-            ).replace("&lt;br/&gt;", "<br/>")
+            item.sourceText = item.sourceText.replace("&lt;eos&gt;", "<code>&lt;eos&gt;</code>").replace("&lt;br/&gt;", "<br/>")
+            item.sourceText = item.sourceText.replace("\n", "<br/>")
+            item.targetText = item.targetText.replace("\n", "<br/>")
         guidelines = (
             '<p>'
             f'Below is a fragment of document in {source_language}. '

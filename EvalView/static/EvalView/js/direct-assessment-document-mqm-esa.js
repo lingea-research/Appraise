@@ -321,6 +321,7 @@ class MQMItemHandler {
             _src_raw.startsWith("<audio") ||
             _src_raw.startsWith("<img")
         )
+        this.contrastive_esa = ($("#shared-source-text-content").length > 0)
         // NOTE: we don't decode entities for the target text, which might cause false positive annotated errors
         this.text_target_orig = JSON.parse(this.el.children('#text-target-payload').html()).trim()
         this.SELECTION_STATE = []
@@ -344,12 +345,26 @@ class MQMItemHandler {
 
     
         // setup_span_structure
-        let html_target = this.text_target_orig.split("").map((v, i) => {
-            if (v == "\n") {
-                return "<br>" // preserve newlines
+        // First, handle <br/> and <br> tags by splitting the text and processing each segment
+        let segments = this.text_target_orig.split(/(<br\s*\/?>)/gi);
+        let char_index = 0;
+        let html_target = segments.map((segment) => {
+            // If this is a br tag, preserve it as-is
+            if (segment.match(/^<br\s*\/?>$/i)) {
+                return segment;
             }
-            return `<span class="mqm_char" id="target_char_${i}" char_id="${i}">${v}</span>`
+            // Otherwise, split into characters and wrap in spans
+            return segment.split("").map((v) => {
+                if (v == "\n") {
+                    return "<br>" // preserve newlines
+                }
+                let span = `<span class="mqm_char" id="target_char_${char_index}" char_id="${char_index}">${v}</span>`;
+                char_index++;
+                return span;
+            }).join("");
         }).join("") + " <span class='mqm_char span_missing' id='target_char_missing' char_id='missing'>[MISSING]</span>"
+        // Store the actual character count (excluding br tags)
+        this.text_target_char_count = char_index;
         this.el_target.html(html_target)
 
         this.redraw_mqm()
@@ -368,52 +383,137 @@ class MQMItemHandler {
 
         // handle character alignment estimation
         if (!this.source_is_multimodal) {
-            let html_source = this.text_source_orig.split("").map((v, i) => {
-                if (v == "\n") {
-                    return "<br>" // preserve newlines
-                }
-                return `<span class="mqm_char_src" id="source_char_${i}" char_id="${i}">${v}</span>`
-            }).join("")
-            this.el_source.html(html_source)
 
-            await waitout_js_loop()
-
-            let len_src = this.text_source_orig.split("").length
-            let len_tgt = this.text_target_orig.split("").length
-            this.el_target.children(".mqm_char").each((i, el) => {
-                // on hover
-                $(el).on("mouseenter", () => {
-                    // get char position from attribute
-                    let tgt_char_i = Number.parseInt($(el).attr("char_id"))
-                    // approximate position
-                    let src_char_i = Math.floor(tgt_char_i * len_src / len_tgt)
-                    // remove underline from all mqm
-                    this.el_source.children(".mqm_char_src").css("text-decoration", "")
-
-                    let highlight_width = Math.floor(16 / 2)
-                    // set underline to the corresponding character and its neighbours
-                    for (let range = highlight_width; range > 0; range--) {
-                        // extrapolate range between #111 and #ddd
-                        let color = (Math.floor((range-1)/highlight_width * (0xd - 0x1))+0x1).toString(16)
-                        for (let i = Math.max(0, src_char_i - range); i <= Math.min(len_src, src_char_i + range); i++) {
-                            this.el_source.children(`#source_char_${i}`).css("text-decoration", `underline 15% #${color}${color}${color} solid`)
+            // Check if we're in contrastive mode with shared source text
+            let $sharedSource = $("#shared-source-text-content");
+            if (this.contrastive_esa) {
+                // Initialize shared source text only once (check if not already initialized)
+                let len_src;
+                if (!$sharedSource.children(".mqm_char_src").length) {
+                    // Handle <br/> tags in source text like we do for target
+                    let src_segments = this.text_source_orig.split(/(<br\s*\/?>)/gi);
+                    let src_char_index = 0;
+                    let html_source = src_segments.map((segment) => {
+                        // If this is a br tag, preserve it as-is
+                        if (segment.match(/^<br\s*\/?>$/i)) {
+                            return segment;
                         }
+                        // Otherwise, split into characters and wrap in spans
+                        return segment.split("").map((v) => {
+                            if (v == "\n") {
+                                return "<br>" // preserve newlines
+                            }
+                            let span = `<span class="mqm_char_src" id="source_char_${src_char_index}" char_id="${src_char_index}">${v}</span>`;
+                            src_char_index++;
+                            return span;
+                        }).join("");
+                    }).join("")
+                    $sharedSource.html(html_source)
+                    // Store the character count on the element for reuse
+                    $sharedSource.attr("data-char-count", src_char_index)
+                    len_src = src_char_index;
+                } else {
+                    // Use stored character count
+                    len_src = parseInt($sharedSource.attr("data-char-count"))
+                }
+                
+                await waitout_js_loop()
+
+                let len_tgt = this.text_target_char_count;
+                
+                // Wire up target chars to highlight shared source
+                this.el_target.children(".mqm_char").each((i, el) => {
+                    // on hover
+                    $(el).on("mouseenter", () => {
+                        // get char position from attribute
+                        let tgt_char_i = Number.parseInt($(el).attr("char_id"))
+                        // approximate position
+                        let src_char_i = Math.floor(tgt_char_i * len_src / len_tgt)
+                        // remove underline from all mqm
+                        $sharedSource.children(".mqm_char_src").css("text-decoration", "")
+
+                        let highlight_width = Math.floor(16 / 2)
+                        // set underline to the corresponding character and its neighbours
+                        for (let range = highlight_width; range > 0; range--) {
+                            // extrapolate range between #111 and #ddd
+                            let color = (Math.floor((range-1)/highlight_width * (0xd - 0x1))+0x1).toString(16)
+                            for (let i = Math.max(0, src_char_i - range); i <= Math.min(len_src, src_char_i + range); i++) {
+                                $sharedSource.children(`#source_char_${i}`).css("text-decoration", `underline 15% #${color}${color}${color} solid`)
+                            }
+                        }
+                    })
+                    // on leave remove all decorations
+                    $(el).on("mouseleave", () => {
+                        $sharedSource.children(".mqm_char_src").css("text-decoration", "")
+                    })
+                })
+            } else {
+                // Original non-contrastive mode: use local source text
+                // Handle <br/> tags in source text
+                let src_segments = this.text_source_orig.split(/(<br\s*\/?>)/gi);
+                let src_char_index = 0;
+                let html_source = src_segments.map((segment) => {
+                    // If this is a br tag, preserve it as-is
+                    if (segment.match(/^<br\s*\/?>$/i)) {
+                        return segment;
                     }
+                    // Otherwise, split into characters and wrap in spans
+                    return segment.split("").map((v) => {
+                        if (v == "\n") {
+                            return "<br>" // preserve newlines
+                        }
+                        let span = `<span class="mqm_char_src" id="source_char_${src_char_index}" char_id="${src_char_index}">${v}</span>`;
+                        src_char_index++;
+                        return span;
+                    }).join("");
+                }).join("")
+                this.el_source.html(html_source)
+
+                await waitout_js_loop()
+
+                let len_src = src_char_index;
+                let len_tgt = this.text_target_char_count;
+                this.el_target.children(".mqm_char").each((i, el) => {
+                    // on hover
+                    $(el).on("mouseenter", () => {
+                        // get char position from attribute
+                        let tgt_char_i = Number.parseInt($(el).attr("char_id"))
+                        // approximate position
+                        let src_char_i = Math.floor(tgt_char_i * len_src / len_tgt)
+                        // remove underline from all mqm
+                        this.el_source.children(".mqm_char_src").css("text-decoration", "")
+
+                        let highlight_width = Math.floor(16 / 2)
+                        // set underline to the corresponding character and its neighbours
+                        for (let range = highlight_width; range > 0; range--) {
+                            // extrapolate range between #111 and #ddd
+                            let color = (Math.floor((range-1)/highlight_width * (0xd - 0x1))+0x1).toString(16)
+                            for (let i = Math.max(0, src_char_i - range); i <= Math.min(len_src, src_char_i + range); i++) {
+                                this.el_source.children(`#source_char_${i}`).css("text-decoration", `underline 15% #${color}${color}${color} solid`)
+                            }
+                        }
+                    })
+                    // on leave remove all decorations
+                    $(el).on("mouseleave", () => {
+                        this.el_source.children(".mqm_char_src").css("text-decoration", "")
+                    })
                 })
-                // on leave remove all decorations
-                $(el).on("mouseleave", () => {
-                    this.el_source.children(".mqm_char_src").css("text-decoration", "")
-                })
-            })
+            }
         }
 
 
         // slider bubble handling
-        this.el_slider.find(".ui-slider-handle").append("<div class='slider-bubble'>10</div>")
+        if (this.contrastive_esa) {
+            this.el_slider.find(".ui-slider-handle").append("<div class='slider-bubble'>10</div>")
+        } else {
+            this.el_slider.find(".ui-slider-handle").append("<div class='slider-bubble'>100</div>")
+        }
         let refresh_bubble = () => {
             var value = this.el_slider.slider('value')
             // Divide by 10 and get ceiled value
-            value = Math.min(10, Math.ceil((value + 0.1) / 10));
+            if (this.contrastive_esa) {
+                value = Math.min(10, Math.ceil((value + 0.1) / 10));
+            }
             this.el_slider.find(".slider-bubble").text(value)
         }
         this.el_slider.find(".ui-slider-handle").on("mousedown ontouchstart", () => {
@@ -428,6 +528,9 @@ class MQMItemHandler {
 
         this.el_slider.find(".ui-slider-handle").on("mouseup ontouchend", async () => {
             let value = this.el_slider.slider('value')
+            if (this.contrastive_esa) {
+                value = Math.min(10, Math.ceil((value + 0.1) / 10));
+            }
             if (this.tutorial) {
                 // do nothing, we don't validate during tutorial
             } else if (this.mqm.length == 0 && value < 66) {
