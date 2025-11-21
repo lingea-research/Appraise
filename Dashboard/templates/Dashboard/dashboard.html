@@ -14,7 +14,17 @@
           <div class="panel-body">
 {% if current_task %}
             <h3>Current set</h3>
-            <p>Continue annotation for <a href="{% url current_url %}">{{current_task.campaign}}:{{current_task.marketTargetLanguage}}</a>.</p>
+            <p>
+              {% if current_task_annotated == 0 %}
+                Begin annotation for
+              {% else %}
+                Continue annotation for
+              {% endif %}
+              <a href="{% url current_url %}">{{current_task.campaign}}:{{current_task.marketTargetLanguage}}</a>
+              {% if current_task_total %}
+                &nbsp;&mdash;&nbsp;{{ current_task_annotated }} / {{ current_task_total }}
+              {% endif %}
+            </p>
 {% elif all_languages %}
     {% for _, languages in all_languages.items %}
     {% if languages %}

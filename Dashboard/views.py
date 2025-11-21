@@ -44,7 +44,7 @@ from deprecated import add_deprecated_method
 
 LOGGER = _get_logger(name=__name__)
 
-HITS_REQUIRED_BEFORE_ENGLISH_ALLOWED = 5
+HITS_REQUIRED_BEFORE_ENGLISH_ALLOWED = 0
 
 
 # HTTP error handlers supporting COMMIT_TAG.

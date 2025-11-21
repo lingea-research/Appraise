@@ -129,6 +129,12 @@ function update_score()
   </table>
 </div>
 
+<div style="text-align:right;margin-top:5px;">
+  {% if task_total and task_total > 0 %}
+    <small>Progress: <strong>{{ task_annotated }} / {{ task_total }}</strong></small>
+  {% endif %}
+</div>
+
 <div class="row">
 <div class="col-sm-12">
 {% if isCompleteDocument %}
